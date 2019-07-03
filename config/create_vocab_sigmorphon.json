@@ -1,0 +1,22 @@
+{
+  "dataset_reader": {
+    "type": "udify_sigmorphon_2019_task_2",
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": false
+      },
+      "token_characters": {
+        "type": "characters"
+      }
+    }
+  },
+  "vocabulary": {
+    "non_padded_namespaces": ["feats", "lemmas", "*tags", "*labels"],
+    // Add the special "@@UNKNOWN@@" token to handle dev/test set labels that don't appear in training
+    "tokens_to_add": {
+      "feats": ["@@UNKNOWN@@"],
+      "lemmas": ["@@UNKNOWN@@"]
+    }
+  }
+}

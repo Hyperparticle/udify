@@ -102,3 +102,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+
+# Project specific
+/.idea/
+/data/
+/logs/
+/tmp/
+notebooks/bertviz/

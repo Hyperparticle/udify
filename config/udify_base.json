@@ -1,0 +1,175 @@
+// The base configuration for UD parsing
+{
+  "dataset_reader": {
+    "type": "udify_universal_dependencies",
+    "lazy": false,
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+      "token_characters": {
+        "type": "characters",
+        "min_padding_length": 1
+      }
+    }
+  },
+  "vocabulary": {
+    "directory_path": "data/vocab/UD_English-EWT/vocabulary",
+    "non_padded_namespaces": ["upos", "xpos", "feats", "lemmas", "*tags", "*labels"]
+  },
+  "train_data_path": "data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-train.conllu",
+  "validation_data_path": "data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-dev.conllu",
+  "test_data_path": "data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-test.conllu",
+  "evaluate_on_test": true,
+  "model": {
+    local global_dropout = 0.5,
+    local label_smoothing = 0.03,
+
+    local word_embedding_dim = 512,
+    local char_embedding_dim = 256,
+    local hidden_dim = 512,
+
+    local shared_layers = 2,
+    local task_layers = 1,
+    
+    "type": "udify_model",
+    "tasks": ["upos", "xpos", "feats", "lemmas", "deps"],
+    "dropout": global_dropout,
+    "word_dropout": 0.2,
+    "text_field_embedder": {
+      "type": "udify_embedder",
+      "sum_embeddings": ["tokens", "token_characters"],
+      "dropout": global_dropout,
+      "token_embedders": {
+        "tokens": {
+          "type": "embedding",
+          "embedding_dim": word_embedding_dim
+        },
+        "token_characters": {
+          "type": "udify_character_encoding",
+          "dropout": global_dropout,
+          "embedding": {
+            "embedding_dim": char_embedding_dim
+          },
+          "encoder": {
+            "type": "lstm",
+            "input_size": char_embedding_dim,
+            "hidden_size": char_embedding_dim,
+            "num_layers": task_layers,
+            "dropout": 0.0,
+            "bidirectional": true
+          }
+        }
+      }
+    },
+    "encoder": {
+      "type": "udify_residual_rnn",
+      "input_size": hidden_dim,
+      "hidden_size": hidden_dim,
+      "num_layers": shared_layers,
+      "dropout": global_dropout
+    },
+    "decoders": {
+      "upos": {
+        "type": "udify_tag_decoder",
+        "task": "upos",
+        "encoder": {
+          "type": "udify_residual_rnn",
+          "input_size": hidden_dim,
+          "hidden_size": hidden_dim,
+          "num_layers": task_layers,
+          "dropout": global_dropout
+        },
+        "label_smoothing": label_smoothing,
+        "dropout": global_dropout
+      },
+      "xpos": {
+        "type": "udify_tag_decoder",
+        "task": "xpos",
+        "encoder": {
+          "type": "udify_residual_rnn",
+          "input_size": hidden_dim,
+          "hidden_size": hidden_dim,
+          "num_layers": task_layers,
+          "dropout": global_dropout
+        },
+        "label_smoothing": label_smoothing,
+        "dropout": global_dropout
+      },
+      "feats": {
+        "type": "udify_tag_decoder",
+        "task": "feats",
+        "encoder": {
+          "type": "udify_residual_rnn",
+          "input_size": hidden_dim,
+          "hidden_size": hidden_dim,
+          "num_layers": task_layers,
+          "dropout": global_dropout
+        },
+        "label_smoothing": label_smoothing,
+        "dropout": global_dropout
+      },
+      "lemmas": {
+        "type": "udify_tag_decoder",
+        "task": "lemmas",
+        "encoder": {
+          "type": "udify_residual_rnn",
+          "input_size": hidden_dim,
+          "hidden_size": hidden_dim,
+          "num_layers": task_layers,
+          "dropout": global_dropout
+        },
+        "label_smoothing": label_smoothing,
+        "dropout": global_dropout
+      },
+      "deps": {
+        "type": "udify_dependency_decoder",
+        "pos_embed_dim": null,
+        "tag_representation_dim": 128,
+        "arc_representation_dim": 512,
+        "dropout": global_dropout,
+        "encoder": {
+          "type": "udify_residual_rnn",
+          "input_size": hidden_dim,
+          "hidden_size": hidden_dim,
+          "num_layers": task_layers,
+          "dropout": global_dropout,
+          "residual": false
+        }
+      }
+    }
+  },
+  "iterator": {
+    "type": "bucket",
+    "batch_size": 32,
+    "sorting_keys": [["tokens", "num_tokens"]],
+    "biggest_batch_first": true
+//    "track_epoch": true
+  },
+  "trainer": {
+    "optimizer": {
+      "type": "adam",
+      "lr": 4e-3,
+      "betas": [0.9, 0.99]
+    },
+    "learning_rate_scheduler": {
+      "type": "multi_step",
+      "milestones": [0, 1, 15, 20, 30, 40],
+      "gamma": 0.5
+    },
+    "num_epochs": 50,
+    "patience": 50,
+    "validation_metric": "+.run/.sum",
+    "should_log_learning_rate": false,
+    "should_log_parameter_statistics": false,
+    "summary_interval": 500,
+    "num_serialized_models_to_keep": 1,
+    "grad_norm": 5.0,
+    "grad_clipping": 10.0,
+    "cuda_device": 0
+  },
+//  "random_seed": 13370,
+//  "numpy_seed": 1337,
+//  "pytorch_seed": 133
+}

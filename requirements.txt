@@ -1,0 +1,4 @@
+allennlp
+tensorflow
+pandas
+jupyter
