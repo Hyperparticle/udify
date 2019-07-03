@@ -30,7 +30,7 @@ bash ./scripts/download_ud_data.sh
 ```
 
 or alternatively download the data from [universaldependencies.org](https://universaldependencies.org/) and extract 
-into `data/ud-treebanks-v2.3/`, then run `scripts/concat_ud_data/sh` to generate the multilingual UD dataset.
+into `data/ud-treebanks-v2.3/`, then run `scripts/concat_ud_data.sh` to generate the multilingual UD dataset.
 
 ### Training the Model
 
