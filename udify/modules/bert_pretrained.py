@@ -12,7 +12,7 @@ import torch
 import torch.nn.functional as F
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer
-from pytorch_pretrained_bert.modeling import BertModel
+from pytorch_pretrained_bert.modeling import BertModel, BertConfig
 
 from allennlp.common.util import pad_sequence_to_length
 from allennlp.modules.token_embedders import TokenEmbedder
@@ -548,6 +548,41 @@ class UdifyPretrainedBertEmbedder(BertEmbedder):
                  layer_dropout: float = 0.1,
                  combine_layers: str = "mix") -> None:
         model = BertModel.from_pretrained(pretrained_model)
+
+        for param in model.parameters():
+            param.requires_grad = requires_grad
+
+        super().__init__(bert_model=model,
+                         layer_dropout=layer_dropout,
+                         combine_layers=combine_layers)
+
+        self.model = model
+        self.dropout = dropout
+        self.set_dropout(dropout)
+
+    def set_dropout(self, dropout):
+        """
+        Applies dropout to all BERT layers
+        """
+        self.dropout = dropout
+
+        self.model.embeddings.dropout.p = dropout
+
+        for layer in self.model.encoder.layer:
+            layer.attention.self.dropout.p = dropout
+            layer.attention.output.dropout.p = dropout
+            layer.output.dropout.p = dropout
+
+
+@TokenEmbedder.register("udify-bert-predictor")
+class UdifyPredictionBertEmbedder(BertEmbedder):
+    """To be used for inference only, pretrained model is unneeded"""
+    def __init__(self, bert_config: str,
+                 requires_grad: bool = False,
+                 dropout: float = 0.1,
+                 layer_dropout: float = 0.1,
+                 combine_layers: str = "mix") -> None:
+        model = BertModel(BertConfig.from_json_file(bert_config))
 
         for param in model.parameters():
             param.requires_grad = requires_grad

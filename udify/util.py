@@ -131,21 +131,12 @@ def get_ud_treebank_names(dataset_dir: str) -> List[Tuple[str, str]]:
     return list(zip(treebanks, short_names))
 
 
-def predict_model(predictor: str, params: Params, archive_dir: str,
-                  input_file: str, output_file: str, batch_size: int = 1):
-    """
-    Predict output annotations from the given model and input file and produce an output file.
-    :param predictor: the type of predictor to use, e.g., "udify_predictor"
-    :param params: the Params of the model
-    :param archive_dir: the saved model archive
-    :param input_file: the input file to predict
-    :param output_file: the output file to save
-    :param batch_size: the batch size, set this higher to speed up GPU inference
-    """
+def predict_model_with_archive(predictor: str, params: Params, archive: str,
+                               input_file: str, output_file: str, batch_size: int = 1):
     cuda_device = params["trainer"]["cuda_device"]
 
     check_for_gpu(cuda_device)
-    archive = load_archive(os.path.join(archive_dir, "model.tar.gz"),
+    archive = load_archive(archive,
                            cuda_device=cuda_device)
 
     predictor = Predictor.from_archive(archive, predictor)
@@ -157,6 +148,38 @@ def predict_model(predictor: str, params: Params, archive_dir: str,
                               print_to_console=False,
                               has_dataset_reader=True)
     manager.run()
+
+
+def predict_and_evaluate_model_with_archive(predictor: str, params: Params, archive: str, gold_file: str,
+                               pred_file: str, output_file: str, segment_file: str = None, batch_size: int = 1):
+    if not gold_file or not os.path.isfile(gold_file):
+        logger.warning(f"No file exists for {gold_file}")
+        return
+
+    segment_file = segment_file if segment_file else gold_file
+    predict_model_with_archive(predictor, params, archive, segment_file, pred_file, batch_size)
+
+    try:
+        evaluation = evaluate(load_conllu_file(gold_file), load_conllu_file(pred_file))
+        save_metrics(evaluation, output_file)
+    except UDError:
+        logger.warning(f"Failed to evaluate {pred_file}")
+        traceback.print_exc()
+
+
+def predict_model(predictor: str, params: Params, archive_dir: str,
+                  input_file: str, output_file: str, batch_size: int = 1):
+    """
+    Predict output annotations from the given model and input file and produce an output file.
+    :param predictor: the type of predictor to use, e.g., "udify_predictor"
+    :param params: the Params of the model
+    :param archive_dir: the saved model archive
+    :param input_file: the input file to predict
+    :param output_file: the output file to save
+    :param batch_size: the batch size, set this higher to speed up GPU inference
+    """
+    archive = os.path.join(archive_dir, "model.tar.gz")
+    predict_model_with_archive(predictor, params, archive, input_file, output_file, batch_size)
 
 
 def predict_and_evaluate_model(predictor: str, params: Params, archive_dir: str, gold_file: str,
@@ -173,19 +196,9 @@ def predict_and_evaluate_model(predictor: str, params: Params, archive_dir: str,
     useful if it has alternate segmentation
     :param batch_size: the batch size, set this higher to speed up GPU inference
     """
-    if not gold_file or not os.path.isfile(gold_file):
-        logger.warning(f"No file exists for {gold_file}")
-        return
-
-    segment_file = segment_file if segment_file else gold_file
-    predict_model(predictor, params, archive_dir, segment_file, pred_file, batch_size)
-
-    try:
-        evaluation = evaluate(load_conllu_file(gold_file), load_conllu_file(pred_file))
-        save_metrics(evaluation, output_file)
-    except UDError:
-        logger.warning(f"Failed to evaluate {pred_file}")
-        traceback.print_exc()
+    archive = os.path.join(archive_dir, "model.tar.gz")
+    predict_and_evaluate_model_with_archive(predictor, params, archive, gold_file,
+                                            pred_file, output_file, segment_file, batch_size)
 
 
 def save_metrics(evaluation: Dict[str, Any], output_file: str):

@@ -61,17 +61,17 @@ in a folder specified by the `--name` parameter as well as a date stamp, e.g., `
 To predict UD annotations, one can supply the path to the trained model and an input `conllu`-formatted file:
 
 ```bash
-python predict.py <archive_dir> <input.conllu> [--pred_file <output.conllu>]
+python predict.py <archive> <input.conllu> <output.conllu> [--eval_file results.json]
 ```
 
 For instance, predicting the dev set of English EWT with the trained model saved under 
-`logs/multilingual/2019.07.03_11.08.51` can be done with
+`logs/model.tar.gz` and UD treebanks at `data/ud-treebanks-v2.3` can be done with
 
 ```bash
-python predict.py logs/multilingual/2019.07.03_11.08.51 data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-dev.conllu --pred_file en-ewt_dev.conllu
+python predict.py logs/model.tar.gz  data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-dev.conllu logs/pred.conllu --eval_file logs/pred.json
 ```
 
-and will save the output predictions to `logs/multilingual/2019.07.03_11.08.51/en-ewt_dev.conllu`.
+and will save the output predictions to `logs/pred.conllu` and evaluation to `logs/pred.json`.
 
 ## Configuration Options
 
