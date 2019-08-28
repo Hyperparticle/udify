@@ -42,8 +42,8 @@ python train.py --config config/ud/multilingual/udify_bert_finetune_multilingual
 
 which will begin loading the dataset and model before training the network. The model metrics, vocab, and weights will
 be saved under `logs/multilingual`. Note that this process is highly memory intensive and requires 16+ GB of RAM and 
-12+ GB of GPU memory. The training may take 20 or more days to complete all 80 epochs depending on the type of your 
-GPU.
+12+ GB of GPU memory (requirements are half if fp16 is enabled in AllenNLP, but this [isn't officially supported yet](https://github.com/allenai/allennlp/issues/2149)). 
+The training may take 20 or more days to complete all 80 epochs depending on the type of your GPU.
 
 ### Viewing Model Performance
 
@@ -77,10 +77,15 @@ and will save the output predictions to `logs/pred.conllu` and evaluation to `lo
 
 One can specify the type of device to run on. For a single GPU, use the flag `--device 0`, or `--device -1` for CPU.
 
-## Pretrained Models [Coming Soon]
+## [Pretrained Models](http://hdl.handle.net/11234/1-3042)
 
 The pretrained multilingual UDify model can drastically speed up fine-tuning on any UD treebank. A link to download the 
-pretrained model is coming soon (need to find a proper hosting site).
+pretrained model [can be found here](http://hdl.handle.net/11234/1-3042). It contains the following:
+
+- `udify-model.tar.gz` - The full UDify model archive that can be used for prediction with predict.py. Note that this 
+model has been trained for extra epochs, and may differ slightly from the model shown in the original research paper.
+- `udify-bert.tar.gz` - The extracted BERT weights from the UDify model, in 
+[pytorch-transformers (pytorch-pretrained-bert)](https://github.com/huggingface/pytorch-transformers) format.
 
 ## SIGMORPHON 2019 Shared Task [Coming Soon]
 
