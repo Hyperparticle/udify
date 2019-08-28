@@ -9,6 +9,8 @@ providing tools to train a multilingual model capable of parsing any Universal D
 accuracy. This project also supports training and evaluating for the 
 [SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/).
 
+[![UDify Model Architecture](docs/udify-architecture.png)](https://arxiv.org/pdf/1904.02099.pdf)
+
 The project is built using [AllenNLP](https://allennlp.org/) and [PyTorch](https://pytorch.org/).
 
 **Note that this repository is still a work in progress** (sorry, I'm traveling a lot :airplane:).
