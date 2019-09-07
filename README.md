@@ -86,7 +86,11 @@ and will save the output predictions to `logs/pred.conllu` and evaluation to `lo
 
 ## Configuration Options
 
-One can specify the type of device to run on. For a single GPU, use the flag `--device 0`, or `--device -1` for CPU.
+1. One can specify the type of device to run on. For a single GPU, use the flag `--device 0`, or `--device -1` for CPU.
+2. To skip waiting for the dataset to be fully loaded into memory, use the flag `--lazy`. 
+Note that the dataset won't be shuffled.
+3. Resume an existing training run with `--resume <archive_dir>`.
+4. Specify a config file with `--config <config_file>`.
 
 ## SIGMORPHON 2019 Shared Task
 
