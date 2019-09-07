@@ -35,7 +35,9 @@ into `data/ud-treebanks-v2.3/`, then run `scripts/concat_ud_data.sh` to generate
 
 ### Training the Model
 
-To train the multilingual model (fine-tune UD on BERT), run the command
+Before training, make sure the dataset is downloaded and extracted into the `data` directory and the multilingual 
+dataset is generated with `scripts/concat_ud_data.sh`. To train the multilingual model (fine-tune UD on BERT), 
+run the command
 
 ```bash
 python train.py --config config/ud/multilingual/udify_bert_finetune_multilingual.json --name multilingual
@@ -67,7 +69,7 @@ model has been trained for extra epochs, and may differ slightly from the model 
 - `udify-bert.tar.gz` - The extracted BERT weights from the UDify model, in 
 [pytorch-transformers (pytorch-pretrained-bert)](https://github.com/huggingface/pytorch-transformers) format.
 
-### Predicting Universal Dependencies from a Trained Model
+## Predicting Universal Dependencies from a Trained Model
 
 To predict UD annotations, one can supply the path to the trained model and an input `conllu`-formatted file:
 
