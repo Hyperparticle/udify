@@ -91,7 +91,6 @@
     "should_log_learning_rate": true,
     "should_log_parameter_statistics": true,
     "summary_interval": 2500,
-    "histogram_interval": 5000,
     "optimizer": {
       "type": "bert_adam",
       "b1": 0.9,

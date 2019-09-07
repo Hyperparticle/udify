@@ -58,10 +58,11 @@ def merge_configs(configs: List[Params]) -> Params:
     return configs[0]
 
 
-def cache_vocab(params: Params):
+def cache_vocab(params: Params, vocab_config_path: str = None):
     """
     Caches the vocabulary given in the Params to the filesystem. Useful for large datasets that are run repeatedly.
     :param params: the AllenNLP Params
+    :param vocab_config_path: an optional config path for constructing the vocab
     """
     if "vocabulary" not in params or "directory_path" not in params["vocabulary"]:
         return
@@ -78,7 +79,9 @@ def cache_vocab(params: Params):
         except OSError:
             pass
 
-    params = merge_configs([params, Params.from_file(VOCAB_CONFIG_PATH)])
+    vocab_config_path = vocab_config_path if vocab_config_path else VOCAB_CONFIG_PATH
+
+    params = merge_configs([params, Params.from_file(vocab_config_path)])
     params["vocabulary"].pop("directory_path", None)
     make_vocab_from_params(params, os.path.split(vocab_path)[0])
 
@@ -288,65 +291,3 @@ def evaluate_sigmorphon_model(gold_file: str, pred_file: str, output_file: str):
 
     with open(output_file, "w") as f:
         json.dump(output_dict, f, indent=4)
-
-# def cache_vocab_multitask(params: Params, replace_vocab: bool = False):
-#     """
-#     TODO
-#     :param params:
-#     :return:
-#     """
-#     if "vocabulary" not in params or "directory_path" not in params["vocabulary"]:
-#         return
-#
-#     vocab_path = params["vocabulary"]["directory_path"]
-#
-#     if os.path.exists(vocab_path):
-#         if not replace_vocab and os.listdir(vocab_path):
-#             return
-#
-#         # Remove empty vocabulary directory to make AllenNLP happy
-#         try:
-#             shutil.rmtree(vocab_path)
-#         except OSError:
-#             pass
-#
-#     params = merge_configs([params, Params.from_file(VOCAB_CONFIG_PATH)])
-#     params["vocabulary"].pop("directory_path", None)
-#
-#     make_multitask_vocab_from_params(params, os.path.split(vocab_path)[0])
-#
-#
-# def make_multitask_vocab_from_params(params: Params, serialization_dir: str):
-#     prepare_environment(params)
-#
-#     vocab_params = params.pop("vocabulary", {})
-#     os.makedirs(serialization_dir, exist_ok=True)
-#     vocab_dir = os.path.join(serialization_dir, "vocabulary")
-#
-#     if os.path.isdir(vocab_dir) and os.listdir(vocab_dir) is not None:
-#         raise ConfigurationError("The 'vocabulary' directory in the provided "
-#                                  "serialization directory is non-empty")
-#
-#     readers = {name: DatasetReader.from_params(reader_params)
-#                for name, reader_params in params.pop("dataset_readers").items()}
-#     train_file_paths = params.pop("train_file_paths").as_dict()
-#
-#     all_datasets = {name: reader.read(train_file_paths[name]) for name, reader in readers.items()}
-#     datasets_for_vocab_creation = set(params.pop("datasets_for_vocab_creation", all_datasets))
-#
-#     for dataset in datasets_for_vocab_creation:
-#         if dataset not in all_datasets:
-#             raise ConfigurationError(f"invalid 'dataset_for_vocab_creation' {dataset}")
-#
-#     logger.info("From dataset instances, %s will be considered for vocabulary creation.",
-#                 ", ".join(datasets_for_vocab_creation))
-#
-#     instances = [instance for key, dataset in all_datasets.items()
-#                  for instance in dataset
-#                  if key in datasets_for_vocab_creation]
-#
-#     vocab = Vocabulary.from_params(vocab_params, instances)
-#
-#     logger.info(f"writing the vocabulary to {vocab_dir}.")
-#     vocab.save_to_files(vocab_dir)
-#     logger.info("done creating vocab")

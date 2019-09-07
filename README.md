@@ -7,13 +7,12 @@ supported languages as input (trained on UD v2.3 with 124 treebanks). This repos
 "[75 Languages, 1 Model: Parsing Universal Dependencies Universally](https://arxiv.org/abs/1904.02099)," 
 providing tools to train a multilingual model capable of parsing any Universal Dependencies treebank with high 
 accuracy. This project also supports training and evaluating for the 
-[SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/).
+[SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/), which achieved 1st place in 
+ morphology tagging (paper can be found [here](https://www.aclweb.org/anthology/W19-4203)).
 
 [![UDify Model Architecture](docs/udify-architecture.png)](https://arxiv.org/pdf/1904.02099.pdf)
 
 The project is built using [AllenNLP](https://allennlp.org/) and [PyTorch](https://pytorch.org/).
-
-**Note that this repository is still a work in progress** (sorry, I'm traveling a lot :airplane:).
 
 ## Getting Started
 
@@ -58,7 +57,7 @@ tensorboard --logdir logs
 This should show the currently trained model as well as any other previously trained models. The model will be stored 
 in a folder specified by the `--name` parameter as well as a date stamp, e.g., `logs/multilingual/2019.07.03_11.08.51`.
 
-## [Pretrained Models](http://hdl.handle.net/11234/1-3042)
+## Pretrained Models
 
 [Pretrained models can be found here](http://hdl.handle.net/11234/1-3042). This can be used for predicting conllu 
 annotations or for fine-tuning. The link contains the following:
@@ -89,8 +88,15 @@ and will save the output predictions to `logs/pred.conllu` and evaluation to `lo
 
 One can specify the type of device to run on. For a single GPU, use the flag `--device 0`, or `--device -1` for CPU.
 
-## SIGMORPHON 2019 Shared Task [Coming Soon]
+## SIGMORPHON 2019 Shared Task
 
 A modification to the basic UDify model is available for parsing morphology in the 
-[SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/). The configuration will be made 
-available soon.
+[SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/). The following paper describes 
+the model in more detail: "[Cross-Lingual Lemmatization and Morphology Tagging with Two-Stage Multilingual BERT Fine-Tuning](https://www.aclweb.org/anthology/W19-4203)".
+
+Training is similar to UD, just 
+run `download_sigmorphon_data.sh` and then use the configuration file under `config/sigmorphon/multilingual`, e.g.,
+
+```bash
+python train.py --config config/sigmorphon/multilingual/udify_bert_sigmorphon_multilingual.json --name sigmorphon
+```
