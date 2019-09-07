@@ -3,7 +3,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 UDify is a single model that parses Universal Dependencies (UPOS, UFeats, Lemmas, Deps) jointly, accepting any of 75 
-supported languages as input (UD v2.3). This repository accompanies the paper, 
+supported languages as input (trained on UD v2.3 with 124 treebanks). This repository accompanies the paper, 
 "[75 Languages, 1 Model: Parsing Universal Dependencies Universally](https://arxiv.org/abs/1904.02099)," 
 providing tools to train a multilingual model capable of parsing any Universal Dependencies treebank with high 
 accuracy. This project also supports training and evaluating for the 
@@ -44,7 +44,7 @@ python train.py --config config/ud/multilingual/udify_bert_finetune_multilingual
 
 which will begin loading the dataset and model before training the network. The model metrics, vocab, and weights will
 be saved under `logs/multilingual`. Note that this process is highly memory intensive and requires 16+ GB of RAM and 
-12+ GB of GPU memory (requirements are half if fp16 is enabled in AllenNLP, but this [isn't officially supported yet](https://github.com/allenai/allennlp/issues/2149)). 
+12+ GB of GPU memory (requirements are half if fp16 is enabled in AllenNLP, but this [requires custom changes to the library](https://github.com/allenai/allennlp/issues/2149)). 
 The training may take 20 or more days to complete all 80 epochs depending on the type of your GPU.
 
 ### Viewing Model Performance
@@ -57,6 +57,16 @@ tensorboard --logdir logs
 
 This should show the currently trained model as well as any other previously trained models. The model will be stored 
 in a folder specified by the `--name` parameter as well as a date stamp, e.g., `logs/multilingual/2019.07.03_11.08.51`.
+
+## [Pretrained Models](http://hdl.handle.net/11234/1-3042)
+
+[Pretrained models can be found here](http://hdl.handle.net/11234/1-3042). This can be used for predicting conllu 
+annotations or for fine-tuning. The link contains the following:
+
+- `udify-model.tar.gz` - The full UDify model archive that can be used for prediction with `predict.py`. Note that this 
+model has been trained for extra epochs, and may differ slightly from the model shown in the original research paper.
+- `udify-bert.tar.gz` - The extracted BERT weights from the UDify model, in 
+[pytorch-transformers (pytorch-pretrained-bert)](https://github.com/huggingface/pytorch-transformers) format.
 
 ### Predicting Universal Dependencies from a Trained Model
 
@@ -78,16 +88,6 @@ and will save the output predictions to `logs/pred.conllu` and evaluation to `lo
 ## Configuration Options
 
 One can specify the type of device to run on. For a single GPU, use the flag `--device 0`, or `--device -1` for CPU.
-
-## [Pretrained Models](http://hdl.handle.net/11234/1-3042)
-
-The pretrained multilingual UDify model can drastically speed up fine-tuning on any UD treebank. A link to download the 
-pretrained model [can be found here](http://hdl.handle.net/11234/1-3042). It contains the following:
-
-- `udify-model.tar.gz` - The full UDify model archive that can be used for prediction with predict.py. Note that this 
-model has been trained for extra epochs, and may differ slightly from the model shown in the original research paper.
-- `udify-bert.tar.gz` - The extracted BERT weights from the UDify model, in 
-[pytorch-transformers (pytorch-pretrained-bert)](https://github.com/huggingface/pytorch-transformers) format.
 
 ## SIGMORPHON 2019 Shared Task [Coming Soon]
 
