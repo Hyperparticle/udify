@@ -94,6 +94,10 @@ Note that the dataset won't be shuffled.
 3. Resume an existing training run with `--resume <archive_dir>`.
 4. Specify a config file with `--config <config_file>`.
 
+### Other Tips
+
+If you would like to fine-tune BERT on a different dataset, make sure to tune the learning rate scheduler to the number of training steps. Copy the [`udify_bert_finetune_multilingual.json`](https://github.com/Hyperparticle/udify/blob/master/config/ud/multilingual/udify_bert_finetune_multilingual.json) config and modify the `"warmup_steps"` and `"start_step"` values. A good initial choice would be to set both to be equal to the number of training batches of one epoch ( run the training script first to see the batches remaining).
+
 ## SIGMORPHON 2019 Shared Task
 
 A modification to the basic UDify model is available for parsing morphology in the 
