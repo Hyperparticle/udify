@@ -89,14 +89,9 @@ and will save the output predictions to `logs/pred.conllu` and evaluation to `lo
 ## Configuration Options
 
 1. One can specify the type of device to run on. For a single GPU, use the flag `--device 0`, or `--device -1` for CPU.
-2. To skip waiting for the dataset to be fully loaded into memory, use the flag `--lazy`. 
-Note that the dataset won't be shuffled.
+2. To skip waiting for the dataset to be fully loaded into memory, use the flag `--lazy`. Note that the dataset won't be shuffled.
 3. Resume an existing training run with `--resume <archive_dir>`.
 4. Specify a config file with `--config <config_file>`.
-
-### Other Tips
-
-If you would like to fine-tune BERT on a different dataset, make sure to tune the learning rate scheduler to the number of training steps. Copy the [`udify_bert_finetune_multilingual.json`](https://github.com/Hyperparticle/udify/blob/master/config/ud/multilingual/udify_bert_finetune_multilingual.json) config and modify the `"warmup_steps"` and `"start_step"` values. A good initial choice would be to set both to be equal to the number of training batches of one epoch ( run the training script first to see the batches remaining).
 
 ## SIGMORPHON 2019 Shared Task
 
@@ -109,4 +104,25 @@ run `download_sigmorphon_data.sh` and then use the configuration file under `con
 
 ```bash
 python train.py --config config/sigmorphon/multilingual/udify_bert_sigmorphon_multilingual.json --name sigmorphon
+```
+
+## FAQ
+
+1. When fine-tuning, my scores/metrics show poor performance.
+
+It should take about 10 epochs to start seeing good scores coming from all the metrics, and 80 epochs to be competitive with UDPipe Future.
+
+One caveat is that if you use a subset of treebanks for fine-tuning instead of all 124 UD v2.3 treebanks, *you must modify the configuration file*. Make sure to tune the learning rate scheduler to the number of training steps. Copy the [`udify_bert_finetune_multilingual.json`](https://github.com/Hyperparticle/udify/blob/master/config/ud/multilingual/udify_bert_finetune_multilingual.json) config and modify the `"warmup_steps"` and `"start_step"` values. A good initial choice would be to set both to be equal to the number of training batches of one epoch ( run the training script first to see the batches remaining).
+
+## Cite This Paper
+
+If you use UDify for your research, please cite this work as:
+
+```latex
+@article{kondratyuk2019languages,
+  title={75 Languages, 1 Model: Parsing Universal Dependencies Universally},
+  author={Kondratyuk, Daniel and Straka, Milan},
+  journal={arXiv preprint arXiv:1904.02099},
+  year={2019}
+}
 ```
