@@ -86,7 +86,7 @@ annotations or for fine-tuning. The link contains the following:
 - `udify-model.tar.gz` - The full UDify model archive that can be used for prediction with `predict.py`. Note that this 
 model has been trained for extra epochs, and may differ slightly from the model shown in the original research paper.
 - `udify-bert.tar.gz` - The extracted BERT weights from the UDify model, in 
-[pytorch-transformers (pytorch-pretrained-bert)](https://github.com/huggingface/pytorch-transformers) format.
+[huggingface transformers (pytorch-pretrained-bert)](https://github.com/huggingface/transformers) format.
 
 ## Predicting Universal Dependencies from a Trained Model
 
