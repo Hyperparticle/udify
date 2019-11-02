@@ -139,6 +139,8 @@ config and modify the `"warmup_steps"` and `"start_step"` values. A good initial
 equal to the number of training batches of one epoch (run the training script first to see the batches remaining, to 
 the right of the progress bar).
 
+Have a question not listed here? [Open a GitHub Issue](https://github.com/Hyperparticle/udify/issues).
+
 ## Cite This Paper
 
 If you use UDify for your research, please cite this work as:
