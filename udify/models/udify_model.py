@@ -119,7 +119,7 @@ class UdifyModel(Model):
             if task == "deps":
                 tag_logits = logits["upos"] if "upos" in logits else None
                 pred_output = self.decoders[task](decoder_input, mask, tag_logits,
-                                                  gold_tags["head_tags"], gold_tags["head_indices"], metadata)
+                                                  gold_tags.get("head_tags", None), gold_tags.get("head_indices", None), metadata)
                 for key in ["heads", "head_tags", "arc_loss", "tag_loss", "mask"]:
                     output_dict[key] = pred_output[key]
             else:
