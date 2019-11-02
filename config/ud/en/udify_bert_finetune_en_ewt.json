@@ -1,0 +1,130 @@
+{
+  "dataset_reader": {
+    "lazy": false,
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+      "bert": {
+        "type": "udify-bert-pretrained",
+        "pretrained_model": "config/archive/bert-base-multilingual-cased/vocab.txt",
+        "do_lowercase": false,
+        "use_starting_offsets": true
+      }
+    }
+  },
+  "train_data_path": "data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-train.conllu",
+  "validation_data_path": "data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-dev.conllu",
+  "test_data_path": "data/ud-treebanks-v2.3/UD_English-EWT/en_ewt-ud-test.conllu",
+  "vocabulary": {
+    "directory_path": "data/vocab/en_ewt/vocabulary"
+  },
+  "model": {
+    "word_dropout": 0.2,
+    "mix_embedding": 12,
+    "layer_dropout": 0.1,
+    "tasks": ["upos", "feats", "lemmas", "deps"],
+    "text_field_embedder": {
+      "type": "udify_embedder",
+      "dropout": 0.5,
+      "allow_unmatched_keys": true,
+      "embedder_to_indexer_map": {
+        "bert": ["bert", "bert-offsets"]
+      },
+      "token_embedders": {
+        "bert": {
+          "type": "udify-bert-pretrained",
+          "pretrained_model": "bert-base-multilingual-cased",
+          "requires_grad": true,
+          "dropout": 0.15,
+          "layer_dropout": 0.1,
+          "combine_layers": "all"
+        }
+      }
+    },
+    "encoder": {
+      "type": "pass_through",
+      "input_dim": 768
+    },
+    "decoders": {
+      "upos": {
+        "encoder": {
+          "type": "pass_through",
+          "input_dim": 768
+        }
+      },
+      "feats": {
+        "encoder": {
+          "type": "pass_through",
+          "input_dim": 768
+        },
+        "adaptive": true
+      },
+      "lemmas": {
+        "encoder": {
+          "type": "pass_through",
+          "input_dim": 768
+        },
+        "adaptive": true
+      },
+      "deps": {
+        "tag_representation_dim": 256,
+        "arc_representation_dim": 768,
+        "encoder": {
+          "type": "pass_through",
+          "input_dim": 768
+        }
+      }
+    }
+  },
+  "iterator": {
+    "batch_size": 32,
+    "maximum_samples_per_batch": ["num_tokens", 32 * 100]
+  },
+  "trainer": {
+    "num_epochs": 80,
+    "patience": 80,
+    "num_serialized_models_to_keep": 1,
+    "should_log_learning_rate": true,
+    "summary_interval": 100,
+    "optimizer": {
+      "type": "bert_adam",
+      "b1": 0.9,
+      "b2": 0.99,
+      "weight_decay": 0.01,
+      "lr": 1e-3,
+      "parameter_groups": [
+        [["^text_field_embedder.*.bert_model.embeddings",
+          "^text_field_embedder.*.bert_model.encoder"], {}],
+        [["^text_field_embedder.*._scalar_mix",
+          "^text_field_embedder.*.pooler",
+          "^scalar_mix",
+          "^decoders",
+          "^shared_encoder"], {}]
+      ]
+    },
+    "learning_rate_scheduler": {
+      "type": "ulmfit_sqrt",
+      "model_size": 1,
+      "warmup_steps": 392,
+      "start_step": 392,
+      "factor": 5.0,
+      "gradual_unfreezing": true,
+      "discriminative_fine_tuning": true,
+      "decay_factor": 0.04
+    }
+  },
+  "udify_replace": [
+    "dataset_reader.token_indexers",
+    "model.text_field_embedder",
+    "model.encoder",
+    "model.decoders.xpos",
+    "model.decoders.deps.encoder",
+    "model.decoders.upos.encoder",
+    "model.decoders.feats.encoder",
+    "model.decoders.lemmas.encoder",
+    "trainer.learning_rate_scheduler",
+    "trainer.optimizer"
+  ]
+}

@@ -253,12 +253,16 @@ class WordpieceIndexer(TokenIndexer[int]):
         return {}
 
     @overrides
-    def pad_token_sequence(self,
-                           tokens: Dict[str, List[int]],
-                           desired_num_tokens: Dict[str, int],
-                           padding_lengths: Dict[str, int]) -> Dict[str, List[int]]:  # pylint: disable=unused-argument
-        return {key: pad_sequence_to_length(val, desired_num_tokens[key])
-                for key, val in tokens.items()}
+    def as_padded_tensor(
+            self,
+            tokens: Dict[str, List[int]],
+            desired_num_tokens: Dict[str, int],
+            padding_lengths: Dict[str, int],
+    ) -> Dict[str, torch.Tensor]:
+        return {
+            key: torch.LongTensor(pad_sequence_to_length(val, desired_num_tokens[key]))
+            for key, val in tokens.items()
+        }
 
     @overrides
     def get_keys(self, index_name: str) -> List[str]:

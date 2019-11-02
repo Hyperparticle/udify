@@ -48,6 +48,25 @@ be saved under `logs/multilingual`. Note that this process is highly memory inte
 12+ GB of GPU memory (requirements are half if fp16 is enabled in AllenNLP, but this [requires custom changes to the library](https://github.com/allenai/allennlp/issues/2149)). 
 The training may take 20 or more days to complete all 80 epochs depending on the type of your GPU.
 
+### Training on Other Datasets
+
+An example config is given for fine-tuning on just English EWT. Just run:
+
+```bash
+python train.py --config config/ud/en/udify_bert_finetune_en_ewt.json --name en_ewt
+```
+
+To run your own dataset, copy `config/ud/multilingual/udify_bert_finetune_multilingual.json` and modify the following
+json parameters:
+
+- `train_data_path`, `validation_data_path`, and `test_data_path` to the paths of the dataset conllu files. These can
+be optionally `null`.
+- `directory_path` to `data/vocab/<dataset_name>/vocabulary`.
+- `warmup_steps` and `start_step` to be equal to the number of steps in the first epoch. A good initial value is in the 
+range `100-1000`. Alternatively, run the training script first to see the number of steps to the right of the progress 
+bar.
+- If using just one treebank, optionally add `xpos` to the `tasks` list.
+
 ### Viewing Model Performance
 
 One can view how well the models are performing by running TensorBoard
@@ -110,9 +129,15 @@ python train.py --config config/sigmorphon/multilingual/udify_bert_sigmorphon_mu
 
 1. When fine-tuning, my scores/metrics show poor performance.
 
-It should take about 10 epochs to start seeing good scores coming from all the metrics, and 80 epochs to be competitive with UDPipe Future.
+It should take about 10 epochs to start seeing good scores coming from all the metrics, and 80 epochs to be competitive
+ with UDPipe Future.
 
-One caveat is that if you use a subset of treebanks for fine-tuning instead of all 124 UD v2.3 treebanks, *you must modify the configuration file*. Make sure to tune the learning rate scheduler to the number of training steps. Copy the [`udify_bert_finetune_multilingual.json`](https://github.com/Hyperparticle/udify/blob/master/config/ud/multilingual/udify_bert_finetune_multilingual.json) config and modify the `"warmup_steps"` and `"start_step"` values. A good initial choice would be to set both to be equal to the number of training batches of one epoch ( run the training script first to see the batches remaining).
+One caveat is that if you use a subset of treebanks for fine-tuning instead of all 124 UD v2.3 treebanks, 
+*you must modify the configuration file*. Make sure to tune the learning rate scheduler to the number of 
+training steps. Copy the [`udify_bert_finetune_multilingual.json`](https://github.com/Hyperparticle/udify/blob/master/config/ud/multilingual/udify_bert_finetune_multilingual.json) 
+config and modify the `"warmup_steps"` and `"start_step"` values. A good initial choice would be to set both to be 
+equal to the number of training batches of one epoch (run the training script first to see the batches remaining, to 
+the right of the progress bar).
 
 ## Cite This Paper
 

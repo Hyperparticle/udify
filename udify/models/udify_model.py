@@ -185,9 +185,9 @@ class UdifyModel(Model):
             device = tokens.device
 
             # This creates a mask that only considers unpadded tokens for mapping to oov
-            padding_mask = torch.ones(tokens.size(), dtype=torch.uint8).to(device)
+            padding_mask = torch.ones(tokens.size(), dtype=torch.bool).to(device)
             for pad in padding_tokens:
-                padding_mask &= tokens != pad
+                padding_mask &= (tokens != pad)
 
             # Create a uniformly random mask selecting either the original words or OOV tokens
             dropout_mask = (torch.empty(tokens.size()).uniform_() < p).to(device)
