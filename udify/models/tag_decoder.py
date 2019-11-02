@@ -131,7 +131,7 @@ class TagDecoder(Model):
 
         loss_fn = self._adaptive_loss if self.adaptive else self._loss
 
-        output_dict = loss_fn(hidden, mask, gold_tags[self.task], output_dim)
+        output_dict = loss_fn(hidden, mask, gold_tags.get(self.task, None), output_dim)
         self._features_loss(hidden, mask, gold_tags, output_dict)
 
         return output_dict
