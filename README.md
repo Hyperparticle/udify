@@ -146,10 +146,17 @@ Have a question not listed here? [Open a GitHub Issue](https://github.com/Hyperp
 If you use UDify for your research, please cite this work as:
 
 ```latex
-@article{kondratyuk2019languages,
-  title={75 Languages, 1 Model: Parsing Universal Dependencies Universally},
-  author={Kondratyuk, Daniel and Straka, Milan},
-  journal={arXiv preprint arXiv:1904.02099},
-  year={2019}
+@inproceedings{kondratyuk-straka-2019-75,
+    title = "75 Languages, 1 Model: Parsing Universal Dependencies Universally",
+    author = "Kondratyuk, Dan  and
+      Straka, Milan",
+    booktitle = "Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)",
+    month = nov,
+    year = "2019",
+    address = "Hong Kong, China",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/D19-1279",
+    pages = "2779--2795",
+    abstract = "We present UDify, a multilingual multi-task model capable of accurately predicting universal part-of-speech, morphological features, lemmas, and dependency trees simultaneously for all 124 Universal Dependencies treebanks across 75 languages. By leveraging a multilingual BERT self-attention model pretrained on 104 languages, we found that fine-tuning it on all datasets concatenated together with simple softmax classifiers for each UD task can meet or exceed state-of-the-art UPOS, UFeats, Lemmas, (and especially) UAS, and LAS scores, without requiring any recurrent or language-specific components. We evaluate UDify for multilingual learning, showing that low-resource languages benefit the most from cross-linguistic annotations. We also evaluate for zero-shot learning, with results suggesting that multilingual training provides strong UD predictions even for languages that neither UDify nor BERT have ever been trained on.",
 }
 ```
