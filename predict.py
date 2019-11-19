@@ -28,6 +28,7 @@ parser.add_argument("--eval_file", default=None, type=str,
 parser.add_argument("--device", default=0, type=int, help="CUDA device number; set to -1 for CPU")
 parser.add_argument("--batch_size", default=1, type=int, help="The size of each prediction batch")
 parser.add_argument("--lazy", action="store_true", help="Lazy load dataset")
+parser.add_argument("--raw_text", action="store_true", help="Input raw sentences, one per line in the input file.")
 
 args = parser.parse_args()
 
@@ -49,9 +50,11 @@ if args.lazy:
 configs = [Params(overrides), Params.from_file(config_file)]
 params = util.merge_configs(configs)
 
+predictor = "udify_predictor" if not args.raw_text else "udify_text_predictor"
+
 if not args.eval_file:
-    util.predict_model_with_archive("udify_predictor", params, archive_dir, args.input_file, args.pred_file,
+    util.predict_model_with_archive(predictor, params, archive_dir, args.input_file, args.pred_file,
                                     batch_size=args.batch_size)
 else:
-    util.predict_and_evaluate_model_with_archive("udify_predictor", params, archive_dir, args.input_file,
+    util.predict_and_evaluate_model_with_archive(predictor, params, archive_dir, args.input_file,
                                                  args.pred_file, args.eval_file, batch_size=args.batch_size)
