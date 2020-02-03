@@ -2,6 +2,7 @@
 name = "udify"
 version = "0.1.0"
 description = ""
+authors = ["Dan Kondratyuk"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
