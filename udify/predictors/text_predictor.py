@@ -11,7 +11,9 @@ from allennlp.data import DatasetReader, Instance
 from allennlp.models import Model
 from allennlp.predictors.predictor import Predictor
 
-from udify.dataset_readers.universal_dependencies import UniversalDependenciesRawDatasetReader
+from udify.dataset_readers.universal_dependencies import (
+    UniversalDependenciesDatasetReader,
+)
 from udify.predictors.predictor import UdifyPredictor
 
 
@@ -20,12 +22,12 @@ class UdifyTextPredictor(Predictor):
     """
     Predictor for a UDify model that takes in a raw sentence and outputs json.
     """
-    def __init__(self,
-                 model: Model,
-                 dataset_reader: DatasetReader,
-                 output_conllu: bool = False) -> None:
+
+    def __init__(
+        self, model: Model, dataset_reader: DatasetReader, output_conllu: bool = False
+    ) -> None:
         super().__init__(model, dataset_reader)
-        self._dataset_reader = UniversalDependenciesRawDatasetReader(self._dataset_reader)
+        self._dataset_reader = UniversalDependenciesDatasetReader(self._dataset_reader)
         self.predictor = UdifyPredictor(model, dataset_reader)
         self.output_conllu = output_conllu
 
@@ -54,7 +56,9 @@ class UdifyTextPredictor(Predictor):
         Runs the underlying model, and adds the ``"words"`` to the output.
         """
         sentence = json_dict["sentence"]
-        tokens = [word.text for word in self._dataset_reader.tokenizer.split_words(sentence)]
+        tokens = [
+            word.text for word in self._dataset_reader.tokenizer.split_words(sentence)
+        ]
         return self._dataset_reader.text_to_instance(tokens)
 
     @overrides
