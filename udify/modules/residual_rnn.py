@@ -3,11 +3,11 @@ Defines a "Residual RNN", which adds the input of the RNNs to the output, which 
 RNN layers.
 """
 
-from overrides import overrides
 import torch
 from allennlp.common.checks import ConfigurationError
-from allennlp.modules.seq2seq_encoders.seq2seq_encoder import Seq2SeqEncoder
 from allennlp.modules.seq2seq_encoders import PytorchSeq2SeqWrapper
+from allennlp.modules.seq2seq_encoders.seq2seq_encoder import Seq2SeqEncoder
+from overrides import overrides
 
 
 @Seq2SeqEncoder.register("udify_residual_rnn")
@@ -18,13 +18,15 @@ class ResidualRNN(Seq2SeqEncoder):
     with residual connections between.
     """
 
-    def __init__(self,
-                 input_size: int,
-                 hidden_size: int,
-                 num_layers: int = 1,
-                 dropout: float = 0.0,
-                 residual: bool = True,
-                 rnn_type: str = "lstm") -> None:
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        dropout: float = 0.0,
+        residual: bool = True,
+        rnn_type: str = "lstm",
+    ) -> None:
         super(ResidualRNN, self).__init__()
 
         self._input_size = input_size
@@ -62,12 +64,16 @@ class ResidualRNN(Seq2SeqEncoder):
     def is_bidirectional(self):
         return True
 
-    def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:  # pylint: disable=arguments-differ
+    def forward(
+        self, inputs: torch.Tensor, mask: torch.Tensor
+    ) -> torch.Tensor:  # pylint: disable=arguments-differ
         hidden = inputs
         for i, layer in enumerate(self._layers):
             encoded = layer(hidden, mask)
             # Sum the backward and forward states to allow residual connections
-            encoded = encoded[:, :, :self._hidden_size] + encoded[:, :, self._hidden_size:]
+            encoded = (
+                encoded[:, :, : self._hidden_size] + encoded[:, :, self._hidden_size :]
+            )
 
             projecting = i == 0 and self._input_size != self._hidden_size
             if self._residual and not projecting:

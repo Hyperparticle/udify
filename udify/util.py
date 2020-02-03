@@ -2,29 +2,29 @@
 A collection of handy utilities
 """
 
-from typing import List, Tuple, Dict, Any
-
-import os
 import glob
 import json
 import logging
+import os
 import tarfile
 import traceback
+from typing import Any, Dict, List, Tuple
 
 import torch
-
-from allennlp.common.checks import ConfigurationError
-from allennlp.common import Params
-from allennlp.common.params import with_fallback
-from allennlp.commands.make_vocab import make_vocab_from_params
+from allennlp.commands.dry_run import dry_run_from_params
 from allennlp.commands.predict import _PredictManager
-from allennlp.common.checks import check_for_gpu
+from allennlp.common import Params
+from allennlp.common.checks import ConfigurationError, check_for_gpu
+from allennlp.common.params import with_fallback
 from allennlp.models.archival import load_archive
 from allennlp.predictors.predictor import Predictor
 
-from udify.dataset_readers.evaluate_2019_task2 import read_conllu, input_pairs, manipulate_data
-
-from udify.dataset_readers.conll18_ud_eval import evaluate, load_conllu_file, UDError
+from .dataset_readers.conll18_ud_eval import UDError, evaluate, load_conllu_file
+from .dataset_readers.evaluate_2019_task2 import (
+    input_pairs,
+    manipulate_data,
+    read_conllu,
+)
 
 VOCAB_CONFIG_PATH = "config/create_vocab.json"
 
@@ -43,7 +43,9 @@ def merge_configs(configs: List[Params]) -> Params:
         configs = configs[:-2]
 
         if "udify_replace" in overrides:
-            replacements = [replace.split(".") for replace in overrides.pop("udify_replace")]
+            replacements = [
+                replace.split(".") for replace in overrides.pop("udify_replace")
+            ]
             for replace in replacements:
                 obj = config
                 try:
@@ -53,7 +55,9 @@ def merge_configs(configs: List[Params]) -> Params:
                     raise ConfigurationError(f"Config does not have key {key}")
                 obj.pop(replace[-1])
 
-        configs.append(Params(with_fallback(preferred=overrides.params, fallback=config.params)))
+        configs.append(
+            Params(with_fallback(preferred=overrides.params, fallback=config.params))
+        )
 
     return configs[0]
 
@@ -83,10 +87,12 @@ def cache_vocab(params: Params, vocab_config_path: str = None):
 
     params = merge_configs([params, Params.from_file(vocab_config_path)])
     params["vocabulary"].pop("directory_path", None)
-    make_vocab_from_params(params, os.path.split(vocab_path)[0])
+    dry_run_from_params(params, os.path.split(vocab_path)[0])
 
 
-def get_ud_treebank_files(dataset_dir: str, treebanks: List[str] = None) -> Dict[str, Tuple[str, str, str]]:
+def get_ud_treebank_files(
+    dataset_dir: str, treebanks: List[str] = None
+) -> Dict[str, Tuple[str, str, str]]:
     """
     Retrieves all treebank data paths in the given directory.
     :param dataset_dir: the directory where all treebank directories are stored
@@ -97,7 +103,11 @@ def get_ud_treebank_files(dataset_dir: str, treebanks: List[str] = None) -> Dict
     treebanks = os.listdir(dataset_dir) if not treebanks else treebanks
     for treebank in treebanks:
         treebank_path = os.path.join(dataset_dir, treebank)
-        conllu_files = [file for file in sorted(os.listdir(treebank_path)) if file.endswith(".conllu")]
+        conllu_files = [
+            file
+            for file in sorted(os.listdir(treebank_path))
+            if file.endswith(".conllu")
+        ]
 
         train_file = [file for file in conllu_files if file.endswith("train.conllu")]
         dev_file = [file for file in conllu_files if file.endswith("dev.conllu")]
@@ -122,7 +132,11 @@ def get_ud_treebank_names(dataset_dir: str) -> List[Tuple[str, str]]:
 
     for treebank in treebanks:
         treebank_path = os.path.join(dataset_dir, treebank)
-        conllu_files = [file for file in sorted(os.listdir(treebank_path)) if file.endswith(".conllu")]
+        conllu_files = [
+            file
+            for file in sorted(os.listdir(treebank_path))
+            if file.endswith(".conllu")
+        ]
 
         test_file = [file for file in conllu_files if file.endswith("test.conllu")]
         test_file = test_file[0].split("-")[0] if test_file else None
@@ -134,33 +148,50 @@ def get_ud_treebank_names(dataset_dir: str) -> List[Tuple[str, str]]:
     return list(zip(treebanks, short_names))
 
 
-def predict_model_with_archive(predictor: str, params: Params, archive: str,
-                               input_file: str, output_file: str, batch_size: int = 1):
+def predict_model_with_archive(
+    predictor: str,
+    params: Params,
+    archive: str,
+    input_file: str,
+    output_file: str,
+    batch_size: int = 1,
+):
     cuda_device = params["trainer"]["cuda_device"]
 
     check_for_gpu(cuda_device)
-    archive = load_archive(archive,
-                           cuda_device=cuda_device)
+    archive = load_archive(archive, cuda_device=cuda_device)
 
     predictor = Predictor.from_archive(archive, predictor)
 
-    manager = _PredictManager(predictor,
-                              input_file,
-                              output_file,
-                              batch_size,
-                              print_to_console=False,
-                              has_dataset_reader=True)
+    manager = _PredictManager(
+        predictor,
+        input_file,
+        output_file,
+        batch_size,
+        print_to_console=False,
+        has_dataset_reader=True,
+    )
     manager.run()
 
 
-def predict_and_evaluate_model_with_archive(predictor: str, params: Params, archive: str, gold_file: str,
-                               pred_file: str, output_file: str, segment_file: str = None, batch_size: int = 1):
+def predict_and_evaluate_model_with_archive(
+    predictor: str,
+    params: Params,
+    archive: str,
+    gold_file: str,
+    pred_file: str,
+    output_file: str,
+    segment_file: str = None,
+    batch_size: int = 1,
+):
     if not gold_file or not os.path.isfile(gold_file):
         logger.warning(f"No file exists for {gold_file}")
         return
 
     segment_file = segment_file if segment_file else gold_file
-    predict_model_with_archive(predictor, params, archive, segment_file, pred_file, batch_size)
+    predict_model_with_archive(
+        predictor, params, archive, segment_file, pred_file, batch_size
+    )
 
     try:
         evaluation = evaluate(load_conllu_file(gold_file), load_conllu_file(pred_file))
@@ -170,8 +201,14 @@ def predict_and_evaluate_model_with_archive(predictor: str, params: Params, arch
         traceback.print_exc()
 
 
-def predict_model(predictor: str, params: Params, archive_dir: str,
-                  input_file: str, output_file: str, batch_size: int = 1):
+def predict_model(
+    predictor: str,
+    params: Params,
+    archive_dir: str,
+    input_file: str,
+    output_file: str,
+    batch_size: int = 1,
+):
     """
     Predict output annotations from the given model and input file and produce an output file.
     :param predictor: the type of predictor to use, e.g., "udify_predictor"
@@ -182,11 +219,21 @@ def predict_model(predictor: str, params: Params, archive_dir: str,
     :param batch_size: the batch size, set this higher to speed up GPU inference
     """
     archive = os.path.join(archive_dir, "model.tar.gz")
-    predict_model_with_archive(predictor, params, archive, input_file, output_file, batch_size)
+    predict_model_with_archive(
+        predictor, params, archive, input_file, output_file, batch_size
+    )
 
 
-def predict_and_evaluate_model(predictor: str, params: Params, archive_dir: str, gold_file: str,
-                               pred_file: str, output_file: str, segment_file: str = None, batch_size: int = 1):
+def predict_and_evaluate_model(
+    predictor: str,
+    params: Params,
+    archive_dir: str,
+    gold_file: str,
+    pred_file: str,
+    output_file: str,
+    segment_file: str = None,
+    batch_size: int = 1,
+):
     """
     Predict output annotations from the given model and input file and evaluate the model.
     :param predictor: the type of predictor to use, e.g., "udify_predictor"
@@ -200,8 +247,16 @@ def predict_and_evaluate_model(predictor: str, params: Params, archive_dir: str,
     :param batch_size: the batch size, set this higher to speed up GPU inference
     """
     archive = os.path.join(archive_dir, "model.tar.gz")
-    predict_and_evaluate_model_with_archive(predictor, params, archive, gold_file,
-                                            pred_file, output_file, segment_file, batch_size)
+    predict_and_evaluate_model_with_archive(
+        predictor,
+        params,
+        archive,
+        gold_file,
+        pred_file,
+        output_file,
+        segment_file,
+        batch_size,
+    )
 
 
 def save_metrics(evaluation: Dict[str, Any], output_file: str):
@@ -217,18 +272,37 @@ def save_metrics(evaluation: Dict[str, Any], output_file: str):
 
     logger.info("Metric     | Correct   |      Gold | Predicted | Aligned")
     logger.info("-----------+-----------+-----------+-----------+-----------")
-    for metric in ["Tokens", "Sentences", "Words", "UPOS", "XPOS", "UFeats",
-                   "AllTags", "Lemmas", "UAS", "LAS", "CLAS", "MLAS", "BLEX"]:
-        logger.info("{:11}|{:10.2f} |{:10.2f} |{:10.2f} |{}".format(
-                    metric,
-                    100 * evaluation[metric].precision,
-                    100 * evaluation[metric].recall,
-                    100 * evaluation[metric].f1,
-                    "{:10.2f}".format(100 * evaluation[metric].aligned_accuracy)
-                    if evaluation[metric].aligned_accuracy is not None else ""))
+    for metric in [
+        "Tokens",
+        "Sentences",
+        "Words",
+        "UPOS",
+        "XPOS",
+        "UFeats",
+        "AllTags",
+        "Lemmas",
+        "UAS",
+        "LAS",
+        "CLAS",
+        "MLAS",
+        "BLEX",
+    ]:
+        logger.info(
+            "{:11}|{:10.2f} |{:10.2f} |{:10.2f} |{}".format(
+                metric,
+                100 * evaluation[metric].precision,
+                100 * evaluation[metric].recall,
+                100 * evaluation[metric].f1,
+                "{:10.2f}".format(100 * evaluation[metric].aligned_accuracy)
+                if evaluation[metric].aligned_accuracy is not None
+                else "",
+            )
+        )
 
 
-def cleanup_training(serialization_dir: str, keep_archive: bool = False, keep_weights: bool = False):
+def cleanup_training(
+    serialization_dir: str, keep_archive: bool = False, keep_weights: bool = False
+):
     """
     Removes files generated from training.
     :param serialization_dir: the directory to clean
@@ -242,7 +316,9 @@ def cleanup_training(serialization_dir: str, keep_archive: bool = False, keep_we
         os.remove(os.path.join(serialization_dir, "model.tar.gz"))
 
 
-def archive_bert_model(serialization_dir: str, config_file: str, output_file: str = None):
+def archive_bert_model(
+    serialization_dir: str, config_file: str, output_file: str = None
+):
     """
     Extracts BERT parameters from the given model and saves them to an archive.
     :param serialization_dir: the directory containing the saved model archive
@@ -257,7 +333,9 @@ def archive_bert_model(serialization_dir: str, config_file: str, output_file: st
     try:
         bert_model = model.text_field_embedder.token_embedder_bert.model
     except AttributeError:
-        logger.warning(f"Could not find the BERT model inside the archive {serialization_dir}")
+        logger.warning(
+            f"Could not find the BERT model inside the archive {serialization_dir}"
+        )
         traceback.print_exc()
         return
 
@@ -267,7 +345,7 @@ def archive_bert_model(serialization_dir: str, config_file: str, output_file: st
     if not output_file:
         output_file = os.path.join(serialization_dir, "bert-finetune.tar.gz")
 
-    with tarfile.open(output_file, 'w:gz') as archive:
+    with tarfile.open(output_file, "w:gz") as archive:
         archive.add(config_file, arcname="bert_config.json")
         archive.add(weights_file, arcname="pytorch_model.bin")
 

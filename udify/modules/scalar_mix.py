@@ -5,9 +5,8 @@ The dot-product "Layer Attention" that is applied to the layers of BERT, along w
 from typing import List
 
 import torch
-from torch.nn import ParameterList, Parameter
-
 from allennlp.common.checks import ConfigurationError
+from torch.nn import Parameter, ParameterList
 
 
 class ScalarMixWithDropout(torch.nn.Module):
@@ -21,13 +20,16 @@ class ScalarMixWithDropout(torch.nn.Module):
     the dropout probability (i.e., setting the unnormalized weight to -inf). This effectively
     should redistribute dropped probability mass to all other weights.
     """
-    def __init__(self,
-                 mixture_size: int,
-                 do_layer_norm: bool = False,
-                 initial_scalar_parameters: List[float] = None,
-                 trainable: bool = True,
-                 dropout: float = None,
-                 dropout_value: float = -1e20) -> None:
+
+    def __init__(
+        self,
+        mixture_size: int,
+        do_layer_norm: bool = False,
+        initial_scalar_parameters: List[float] = None,
+        trainable: bool = True,
+        dropout: float = None,
+        dropout_value: float = -1e20,
+    ) -> None:
         super(ScalarMixWithDropout, self).__init__()
         self.mixture_size = mixture_size
         self.do_layer_norm = do_layer_norm
@@ -36,14 +38,20 @@ class ScalarMixWithDropout(torch.nn.Module):
         if initial_scalar_parameters is None:
             initial_scalar_parameters = [0.0] * mixture_size
         elif len(initial_scalar_parameters) != mixture_size:
-            raise ConfigurationError("Length of initial_scalar_parameters {} differs "
-                                     "from mixture_size {}".format(
-                                             initial_scalar_parameters, mixture_size))
+            raise ConfigurationError(
+                "Length of initial_scalar_parameters {} differs "
+                "from mixture_size {}".format(initial_scalar_parameters, mixture_size)
+            )
 
         self.scalar_parameters = ParameterList(
-                [Parameter(torch.FloatTensor([initial_scalar_parameters[i]]),
-                           requires_grad=trainable) for i
-                 in range(mixture_size)])
+            [
+                Parameter(
+                    torch.FloatTensor([initial_scalar_parameters[i]]),
+                    requires_grad=trainable,
+                )
+                for i in range(mixture_size)
+            ]
+        )
         self.gamma = Parameter(torch.FloatTensor([1.0]), requires_grad=trainable)
 
         if self.dropout:
@@ -52,8 +60,11 @@ class ScalarMixWithDropout(torch.nn.Module):
             self.register_buffer("dropout_mask", dropout_mask)
             self.register_buffer("dropout_fill", dropout_fill)
 
-    def forward(self, tensors: List[torch.Tensor],  # pylint: disable=arguments-differ
-                mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(
+        self,
+        tensors: List[torch.Tensor],  # pylint: disable=arguments-differ
+        mask: torch.Tensor = None,
+    ) -> torch.Tensor:
         """
         Compute a weighted average of the ``tensors``.  The input tensors an be any shape
         with at least two dimensions, but must all be the same shape.
@@ -66,19 +77,26 @@ class ScalarMixWithDropout(torch.nn.Module):
         When ``do_layer_norm=False`` the ``mask`` is ignored.
         """
         if len(tensors) != self.mixture_size:
-            raise ConfigurationError("{} tensors were passed, but the module was initialized to "
-                                     "mix {} tensors.".format(len(tensors), self.mixture_size))
+            raise ConfigurationError(
+                "{} tensors were passed, but the module was initialized to "
+                "mix {} tensors.".format(len(tensors), self.mixture_size)
+            )
 
         def _do_layer_norm(tensor, broadcast_mask, num_elements_not_masked):
             tensor_masked = tensor * broadcast_mask
             mean = torch.sum(tensor_masked) / num_elements_not_masked
-            variance = torch.sum(((tensor_masked - mean) * broadcast_mask)**2) / num_elements_not_masked
-            return (tensor - mean) / torch.sqrt(variance + 1E-12)
+            variance = (
+                torch.sum(((tensor_masked - mean) * broadcast_mask) ** 2)
+                / num_elements_not_masked
+            )
+            return (tensor - mean) / torch.sqrt(variance + 1e-12)
 
         weights = torch.cat([parameter for parameter in self.scalar_parameters])
 
         if self.dropout:
-            weights = torch.where(self.dropout_mask.uniform_() > self.dropout, weights, self.dropout_fill)
+            weights = torch.where(
+                self.dropout_mask.uniform_() > self.dropout, weights, self.dropout_fill
+            )
 
         normed_weights = torch.nn.functional.softmax(weights, dim=0)
         normed_weights = torch.split(normed_weights, split_size_or_sections=1)
@@ -97,6 +115,8 @@ class ScalarMixWithDropout(torch.nn.Module):
 
             pieces = []
             for weight, tensor in zip(normed_weights, tensors):
-                pieces.append(weight * _do_layer_norm(tensor,
-                                                      broadcast_mask, num_elements_not_masked))
+                pieces.append(
+                    weight
+                    * _do_layer_norm(tensor, broadcast_mask, num_elements_not_masked)
+                )
             return self.gamma * sum(pieces)

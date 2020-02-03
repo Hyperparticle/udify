@@ -2,30 +2,39 @@
 Decodes dependency trees given a list of contextualized word embeddings
 """
 
-from typing import Dict, Optional, Tuple, Any, List
-import logging
 import copy
+import logging
+from typing import Any, Dict, List, Optional, Tuple
 
-from overrides import overrides
+import numpy
 import torch
 import torch.nn.functional as F
-import numpy
-
 from allennlp.common.checks import check_dimensions_match
 from allennlp.data import Vocabulary
-from allennlp.modules import Embedding, InputVariationalDropout, Seq2SeqEncoder
-from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
-from allennlp.modules import FeedForward
 from allennlp.models.model import Model
-from allennlp.nn import InitializerApplicator, RegularizerApplicator, Activation
-from allennlp.nn.util import get_range_vector
-from allennlp.nn.util import get_device_of, masked_log_softmax, get_lengths_from_binary_sequence_mask
+from allennlp.modules import (
+    Embedding,
+    FeedForward,
+    InputVariationalDropout,
+    Seq2SeqEncoder,
+)
+from allennlp.modules.matrix_attention.bilinear_matrix_attention import (
+    BilinearMatrixAttention,
+)
+from allennlp.nn import Activation, InitializerApplicator, RegularizerApplicator
 from allennlp.nn.chu_liu_edmonds import decode_mst
+from allennlp.nn.util import (
+    get_device_of,
+    get_lengths_from_binary_sequence_mask,
+    get_range_vector,
+    masked_log_softmax,
+)
 from allennlp.training.metrics import AttachmentScores
+from overrides import overrides
 
 logger = logging.getLogger(__name__)
 
-POS_TO_IGNORE = {'``', "''", ':', ',', '.', 'PU', 'PUNCT', 'SYM'}
+POS_TO_IGNORE = {"``", "''", ":", ",", ".", "PU", "PUNCT", "SYM"}
 
 
 @Model.register("udify_dependency_decoder")
@@ -35,79 +44,96 @@ class DependencyDecoder(Model):
     essentially act as a decoder when given intermediate word embeddings instead of as a standalone model.
     """
 
-    def __init__(self,
-                 vocab: Vocabulary,
-                 encoder: Seq2SeqEncoder,
-                 tag_representation_dim: int,
-                 arc_representation_dim: int,
-                 pos_embed_dim: int = None,
-                 tag_feedforward: FeedForward = None,
-                 arc_feedforward: FeedForward = None,
-                 use_mst_decoding_for_validation: bool = True,
-                 dropout: float = 0.0,
-                 initializer: InitializerApplicator = InitializerApplicator(),
-                 regularizer: Optional[RegularizerApplicator] = None) -> None:
+    def __init__(
+        self,
+        vocab: Vocabulary,
+        encoder: Seq2SeqEncoder,
+        tag_representation_dim: int,
+        arc_representation_dim: int,
+        pos_embed_dim: int = None,
+        tag_feedforward: FeedForward = None,
+        arc_feedforward: FeedForward = None,
+        use_mst_decoding_for_validation: bool = True,
+        dropout: float = 0.0,
+        initializer: InitializerApplicator = InitializerApplicator(),
+        regularizer: Optional[RegularizerApplicator] = None,
+    ) -> None:
         super(DependencyDecoder, self).__init__(vocab, regularizer)
 
         self.pos_tag_embedding = None
         if pos_embed_dim is not None:
-            self.pos_tag_embedding = Embedding(self.vocab.get_vocab_size("upos"), pos_embed_dim)
+            self.pos_tag_embedding = Embedding(
+                self.vocab.get_vocab_size("upos"), pos_embed_dim
+            )
 
         self.dropout = torch.nn.Dropout(p=dropout)
 
         self.encoder = encoder
         encoder_output_dim = encoder.get_output_dim()
 
-        self.head_arc_feedforward = arc_feedforward or \
-                                        FeedForward(encoder_output_dim, 1,
-                                                    arc_representation_dim,
-                                                    Activation.by_name("elu")())
+        self.head_arc_feedforward = arc_feedforward or FeedForward(
+            encoder_output_dim, 1, arc_representation_dim, Activation.by_name("elu")()
+        )
         self.child_arc_feedforward = copy.deepcopy(self.head_arc_feedforward)
 
-        self.arc_attention = BilinearMatrixAttention(arc_representation_dim,
-                                                     arc_representation_dim,
-                                                     use_input_biases=True)
+        self.arc_attention = BilinearMatrixAttention(
+            arc_representation_dim, arc_representation_dim, use_input_biases=True
+        )
 
         num_labels = self.vocab.get_vocab_size("head_tags")
 
-        self.head_tag_feedforward = tag_feedforward or \
-                                        FeedForward(encoder_output_dim, 1,
-                                                    tag_representation_dim,
-                                                    Activation.by_name("elu")())
+        self.head_tag_feedforward = tag_feedforward or FeedForward(
+            encoder_output_dim, 1, tag_representation_dim, Activation.by_name("elu")()
+        )
         self.child_tag_feedforward = copy.deepcopy(self.head_tag_feedforward)
-
-        self.tag_bilinear = torch.nn.modules.Bilinear(tag_representation_dim,
-                                                      tag_representation_dim,
-                                                      num_labels)
+        self.tag_bilinear = torch.nn.Bilinear(
+            tag_representation_dim, tag_representation_dim, num_labels
+        )
 
         self._dropout = InputVariationalDropout(dropout)
-        self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, encoder_output_dim]))
+        self._head_sentinel = torch.nn.Parameter(
+            torch.randn([1, 1, encoder_output_dim])
+        )
 
-        check_dimensions_match(tag_representation_dim, self.head_tag_feedforward.get_output_dim(),
-                               "tag representation dim", "tag feedforward output dim")
-        check_dimensions_match(arc_representation_dim, self.head_arc_feedforward.get_output_dim(),
-                               "arc representation dim", "arc feedforward output dim")
+        check_dimensions_match(
+            tag_representation_dim,
+            self.head_tag_feedforward.get_output_dim(),
+            "tag representation dim",
+            "tag feedforward output dim",
+        )
+        check_dimensions_match(
+            arc_representation_dim,
+            self.head_arc_feedforward.get_output_dim(),
+            "arc representation dim",
+            "arc feedforward output dim",
+        )
 
         self.use_mst_decoding_for_validation = use_mst_decoding_for_validation
 
         tags = self.vocab.get_token_to_index_vocabulary("pos")
-        punctuation_tag_indices = {tag: index for tag, index in tags.items() if tag in POS_TO_IGNORE}
+        punctuation_tag_indices = {
+            tag: index for tag, index in tags.items() if tag in POS_TO_IGNORE
+        }
         self._pos_to_ignore = set(punctuation_tag_indices.values())
-        logger.info(f"Found POS tags corresponding to the following punctuation : {punctuation_tag_indices}. "
-                    "Ignoring words with these POS tags for evaluation.")
+        logger.info(
+            f"Found POS tags corresponding to the following punctuation : {punctuation_tag_indices}. "
+            "Ignoring words with these POS tags for evaluation."
+        )
 
         self._attachment_scores = AttachmentScores()
         initializer(self)
 
     @overrides
-    def forward(self,  # type: ignore
-                # words: Dict[str, torch.LongTensor],
-                encoded_text: torch.FloatTensor,
-                mask: torch.LongTensor,
-                pos_logits: torch.LongTensor = None,  # predicted
-                head_tags: torch.LongTensor = None,
-                head_indices: torch.LongTensor = None,
-                metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
+    def forward(
+        self,  # type: ignore
+        # words: Dict[str, torch.LongTensor],
+        encoded_text: torch.FloatTensor,
+        mask: torch.LongTensor,
+        pos_logits: torch.LongTensor = None,  # predicted
+        head_tags: torch.LongTensor = None,
+        head_indices: torch.LongTensor = None,
+        metadata: List[Dict[str, Any]] = None,
+    ) -> Dict[str, torch.Tensor]:
 
         batch_size, _, _ = encoded_text.size()
 
@@ -132,7 +158,9 @@ class DependencyDecoder(Model):
         encoded_text = torch.cat([head_sentinel, encoded_text], 1)
         mask = torch.cat([mask.new_ones(batch_size, 1), mask], 1)
         if head_indices is not None:
-            head_indices = torch.cat([head_indices.new_zeros(batch_size, 1), head_indices], 1)
+            head_indices = torch.cat(
+                [head_indices.new_zeros(batch_size, 1), head_indices], 1
+            )
         if head_tags is not None:
             head_tags = torch.cat([head_tags.new_zeros(batch_size, 1), head_tags], 1)
         float_mask = mask.float()
@@ -140,55 +168,66 @@ class DependencyDecoder(Model):
 
         # shape (batch_size, sequence_length, arc_representation_dim)
         head_arc_representation = self._dropout(self.head_arc_feedforward(encoded_text))
-        child_arc_representation = self._dropout(self.child_arc_feedforward(encoded_text))
+        child_arc_representation = self._dropout(
+            self.child_arc_feedforward(encoded_text)
+        )
 
         # shape (batch_size, sequence_length, tag_representation_dim)
         head_tag_representation = self._dropout(self.head_tag_feedforward(encoded_text))
-        child_tag_representation = self._dropout(self.child_tag_feedforward(encoded_text))
+        child_tag_representation = self._dropout(
+            self.child_tag_feedforward(encoded_text)
+        )
         # shape (batch_size, sequence_length, sequence_length)
-        attended_arcs = self.arc_attention(head_arc_representation,
-                                           child_arc_representation)
+        attended_arcs = self.arc_attention(
+            head_arc_representation, child_arc_representation
+        )
 
         minus_inf = -1e8
         minus_mask = (1 - float_mask) * minus_inf
-        attended_arcs = attended_arcs + minus_mask.unsqueeze(2) + minus_mask.unsqueeze(1)
+        attended_arcs = (
+            attended_arcs + minus_mask.unsqueeze(2) + minus_mask.unsqueeze(1)
+        )
 
         if self.training or not self.use_mst_decoding_for_validation:
-            predicted_heads, predicted_head_tags = self._greedy_decode(head_tag_representation,
-                                                                       child_tag_representation,
-                                                                       attended_arcs,
-                                                                       mask)
+            predicted_heads, predicted_head_tags = self._greedy_decode(
+                head_tag_representation, child_tag_representation, attended_arcs, mask
+            )
         else:
-            predicted_heads, predicted_head_tags = self._mst_decode(head_tag_representation,
-                                                                    child_tag_representation,
-                                                                    attended_arcs,
-                                                                    mask)
+            predicted_heads, predicted_head_tags = self._mst_decode(
+                head_tag_representation, child_tag_representation, attended_arcs, mask
+            )
         if head_indices is not None and head_tags is not None:
 
-            arc_nll, tag_nll = self._construct_loss(head_tag_representation=head_tag_representation,
-                                                    child_tag_representation=child_tag_representation,
-                                                    attended_arcs=attended_arcs,
-                                                    head_indices=head_indices,
-                                                    head_tags=head_tags,
-                                                    mask=mask)
+            arc_nll, tag_nll = self._construct_loss(
+                head_tag_representation=head_tag_representation,
+                child_tag_representation=child_tag_representation,
+                attended_arcs=attended_arcs,
+                head_indices=head_indices,
+                head_tags=head_tags,
+                mask=mask,
+            )
             loss = arc_nll + tag_nll
 
             evaluation_mask = self._get_mask_for_eval(mask[:, 1:], pos_tags)
             # We calculate attachment scores for the whole sentence
             # but excluding the symbolic ROOT token at the start,
             # which is why we start from the second element in the sequence.
-            self._attachment_scores(predicted_heads[:, 1:],
-                                    predicted_head_tags[:, 1:],
-                                    head_indices[:, 1:],
-                                    head_tags[:, 1:],
-                                    evaluation_mask)
+            self._attachment_scores(
+                predicted_heads[:, 1:],
+                predicted_head_tags[:, 1:],
+                head_indices[:, 1:],
+                head_tags[:, 1:],
+                evaluation_mask,
+            )
         else:
-            arc_nll, tag_nll = self._construct_loss(head_tag_representation=head_tag_representation,
-                                                    child_tag_representation=child_tag_representation,
-                                                    attended_arcs=attended_arcs,
-                                                    head_indices=predicted_heads.long(),
-                                                    head_tags=predicted_head_tags.long(),
-                                                    mask=mask)
+            arc_nll, tag_nll = self._construct_loss(
+                head_tag_representation=head_tag_representation,
+                child_tag_representation=child_tag_representation,
+                attended_arcs=attended_arcs,
+                head_indices=predicted_heads.long(),
+                head_tags=predicted_head_tags.long(),
+                mask=mask,
+            )
             loss = arc_nll + tag_nll
 
         output_dict = {
@@ -216,8 +255,10 @@ class DependencyDecoder(Model):
         for instance_heads, instance_tags, length in zip(heads, head_tags, lengths):
             instance_heads = list(instance_heads[1:length])
             instance_tags = instance_tags[1:length]
-            labels = [self.vocab.get_token_from_index(label, "head_tags")
-                      for label in instance_tags]
+            labels = [
+                self.vocab.get_token_from_index(label, "head_tags")
+                for label in instance_tags
+            ]
             head_tag_labels.append(labels)
             head_indices.append(instance_heads)
 
@@ -225,13 +266,15 @@ class DependencyDecoder(Model):
         output_dict["predicted_heads"] = head_indices
         return output_dict
 
-    def _construct_loss(self,
-                        head_tag_representation: torch.Tensor,
-                        child_tag_representation: torch.Tensor,
-                        attended_arcs: torch.Tensor,
-                        head_indices: torch.Tensor,
-                        head_tags: torch.Tensor,
-                        mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _construct_loss(
+        self,
+        head_tag_representation: torch.Tensor,
+        child_tag_representation: torch.Tensor,
+        attended_arcs: torch.Tensor,
+        head_indices: torch.Tensor,
+        head_tags: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes the arc and tag loss for a sequence given gold head indices and tags.
         Parameters
@@ -266,18 +309,30 @@ class DependencyDecoder(Model):
         float_mask = mask.float()
         batch_size, sequence_length, _ = attended_arcs.size()
         # shape (batch_size, 1)
-        range_vector = get_range_vector(batch_size, get_device_of(attended_arcs)).unsqueeze(1)
+        range_vector = get_range_vector(
+            batch_size, get_device_of(attended_arcs)
+        ).unsqueeze(1)
         # shape (batch_size, sequence_length, sequence_length)
-        normalised_arc_logits = masked_log_softmax(attended_arcs,
-                                                   mask) * float_mask.unsqueeze(2) * float_mask.unsqueeze(1)
+        normalised_arc_logits = (
+            masked_log_softmax(attended_arcs, mask)
+            * float_mask.unsqueeze(2)
+            * float_mask.unsqueeze(1)
+        )
 
         # shape (batch_size, sequence_length, num_head_tags)
-        head_tag_logits = self._get_head_tags(head_tag_representation, child_tag_representation, head_indices)
-        normalised_head_tag_logits = masked_log_softmax(head_tag_logits,
-                                                        mask.unsqueeze(-1)) * float_mask.unsqueeze(-1)
+        head_tag_logits = self._get_head_tags(
+            head_tag_representation, child_tag_representation, head_indices
+        )
+        normalised_head_tag_logits = masked_log_softmax(
+            head_tag_logits, mask.unsqueeze(-1)
+        ) * float_mask.unsqueeze(-1)
         # index matrix with shape (batch, sequence_length)
         timestep_index = get_range_vector(sequence_length, get_device_of(attended_arcs))
-        child_index = timestep_index.view(1, sequence_length).expand(batch_size, sequence_length).long()
+        child_index = (
+            timestep_index.view(1, sequence_length)
+            .expand(batch_size, sequence_length)
+            .long()
+        )
         # shape (batch_size, sequence_length)
         arc_loss = normalised_arc_logits[range_vector, child_index, head_indices]
         tag_loss = normalised_head_tag_logits[range_vector, child_index, head_tags]
@@ -294,11 +349,13 @@ class DependencyDecoder(Model):
         tag_nll = -tag_loss.sum() / valid_positions.float()
         return arc_nll, tag_nll
 
-    def _greedy_decode(self,
-                       head_tag_representation: torch.Tensor,
-                       child_tag_representation: torch.Tensor,
-                       attended_arcs: torch.Tensor,
-                       mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _greedy_decode(
+        self,
+        head_tag_representation: torch.Tensor,
+        child_tag_representation: torch.Tensor,
+        attended_arcs: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Decodes the head and head tag predictions by decoding the unlabeled arcs
         independently for each word and then again, predicting the head tags of
@@ -328,7 +385,9 @@ class DependencyDecoder(Model):
             dependency tags of the greedily decoded heads of each word.
         """
         # Mask the diagonal, because the head of a word can't be itself.
-        attended_arcs = attended_arcs + torch.diag(attended_arcs.new(mask.size(1)).fill_(-numpy.inf))
+        attended_arcs = attended_arcs + torch.diag(
+            attended_arcs.new(mask.size(1)).fill_(-numpy.inf)
+        )
         # Mask padded tokens, because we only want to consider actual words as heads.
         if mask is not None:
             minus_mask = (1 - mask).bool().unsqueeze(2)
@@ -340,17 +399,19 @@ class DependencyDecoder(Model):
 
         # Given the greedily predicted heads, decode their dependency tags.
         # shape (batch_size, sequence_length, num_head_tags)
-        head_tag_logits = self._get_head_tags(head_tag_representation,
-                                              child_tag_representation,
-                                              heads)
+        head_tag_logits = self._get_head_tags(
+            head_tag_representation, child_tag_representation, heads
+        )
         _, head_tags = head_tag_logits.max(dim=2)
         return heads, head_tags
 
-    def _mst_decode(self,
-                    head_tag_representation: torch.Tensor,
-                    child_tag_representation: torch.Tensor,
-                    attended_arcs: torch.Tensor,
-                    mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _mst_decode(
+        self,
+        head_tag_representation: torch.Tensor,
+        child_tag_representation: torch.Tensor,
+        attended_arcs: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Decodes the head and head tag predictions using the Edmonds' Algorithm
         for finding minimum spanning trees on directed graphs. Nodes in the
@@ -380,27 +441,46 @@ class DependencyDecoder(Model):
             A tensor of shape (batch_size, sequence_length) representing the
             dependency tags of the optimally decoded heads of each word.
         """
-        batch_size, sequence_length, tag_representation_dim = head_tag_representation.size()
+        (
+            batch_size,
+            sequence_length,
+            tag_representation_dim,
+        ) = head_tag_representation.size()
 
         lengths = mask.data.sum(dim=1).long().cpu().numpy()
 
-        expanded_shape = [batch_size, sequence_length, sequence_length, tag_representation_dim]
+        expanded_shape = [
+            batch_size,
+            sequence_length,
+            sequence_length,
+            tag_representation_dim,
+        ]
         head_tag_representation = head_tag_representation.unsqueeze(2)
-        head_tag_representation = head_tag_representation.expand(*expanded_shape).contiguous()
+        head_tag_representation = head_tag_representation.expand(
+            *expanded_shape
+        ).contiguous()
         child_tag_representation = child_tag_representation.unsqueeze(1)
-        child_tag_representation = child_tag_representation.expand(*expanded_shape).contiguous()
+        child_tag_representation = child_tag_representation.expand(
+            *expanded_shape
+        ).contiguous()
         # Shape (batch_size, sequence_length, sequence_length, num_head_tags)
-        pairwise_head_logits = self.tag_bilinear(head_tag_representation, child_tag_representation)
+        pairwise_head_logits = self.tag_bilinear(
+            head_tag_representation, child_tag_representation
+        )
 
         # Note that this log_softmax is over the tag dimension, and we don't consider pairs
         # of tags which are invalid (e.g are a pair which includes a padded element) anyway below.
         # Shape (batch, num_labels,sequence_length, sequence_length)
-        normalized_pairwise_head_logits = F.log_softmax(pairwise_head_logits, dim=3).permute(0, 3, 1, 2)
+        normalized_pairwise_head_logits = F.log_softmax(
+            pairwise_head_logits, dim=3
+        ).permute(0, 3, 1, 2)
 
         # Mask padded tokens, because we only want to consider actual words as heads.
         minus_inf = -1e8
         minus_mask = (1 - mask.float()) * minus_inf
-        attended_arcs = attended_arcs + minus_mask.unsqueeze(2) + minus_mask.unsqueeze(1)
+        attended_arcs = (
+            attended_arcs + minus_mask.unsqueeze(2) + minus_mask.unsqueeze(1)
+        )
 
         # Shape (batch_size, sequence_length, sequence_length)
         normalized_arc_logits = F.log_softmax(attended_arcs, dim=2).transpose(1, 2)
@@ -409,11 +489,15 @@ class DependencyDecoder(Model):
         # This energy tensor expresses the following relation:
         # energy[i,j] = "Score that i is the head of j". In this
         # case, we have heads pointing to their children.
-        batch_energy = torch.exp(normalized_arc_logits.unsqueeze(1) + normalized_pairwise_head_logits)
+        batch_energy = torch.exp(
+            normalized_arc_logits.unsqueeze(1) + normalized_pairwise_head_logits
+        )
         return self._run_mst_decoding(batch_energy, lengths)
 
     @staticmethod
-    def _run_mst_decoding(batch_energy: torch.Tensor, lengths: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _run_mst_decoding(
+        batch_energy: torch.Tensor, lengths: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         heads = []
         head_tags = []
         for energy, length in zip(batch_energy.detach().cpu(), lengths):
@@ -438,12 +522,17 @@ class DependencyDecoder(Model):
             instance_head_tags[0] = 0
             heads.append(instance_heads)
             head_tags.append(instance_head_tags)
-        return torch.from_numpy(numpy.stack(heads)), torch.from_numpy(numpy.stack(head_tags))
+        return (
+            torch.from_numpy(numpy.stack(heads)),
+            torch.from_numpy(numpy.stack(head_tags)),
+        )
 
-    def _get_head_tags(self,
-                       head_tag_representation: torch.Tensor,
-                       child_tag_representation: torch.Tensor,
-                       head_indices: torch.Tensor) -> torch.Tensor:
+    def _get_head_tags(
+        self,
+        head_tag_representation: torch.Tensor,
+        child_tag_representation: torch.Tensor,
+        head_indices: torch.Tensor,
+    ) -> torch.Tensor:
         """
         Decodes the head tags given the head and child tag representations
         and a tensor of head indices to compute tags for. Note that these are
@@ -471,7 +560,9 @@ class DependencyDecoder(Model):
         """
         batch_size = head_tag_representation.size(0)
         # shape (batch_size,)
-        range_vector = get_range_vector(batch_size, get_device_of(head_tag_representation)).unsqueeze(1)
+        range_vector = get_range_vector(
+            batch_size, get_device_of(head_tag_representation)
+        ).unsqueeze(1)
 
         # This next statement is quite a complex piece of indexing, which you really
         # need to read the docs to understand. See here:
@@ -480,16 +571,21 @@ class DependencyDecoder(Model):
         # sequence length dimension for each element in the batch.
 
         # shape (batch_size, sequence_length, tag_representation_dim)
-        selected_head_tag_representations = head_tag_representation[range_vector, head_indices]
-        selected_head_tag_representations = selected_head_tag_representations.contiguous()
+        selected_head_tag_representations = head_tag_representation[
+            range_vector, head_indices
+        ]
+        selected_head_tag_representations = (
+            selected_head_tag_representations.contiguous()
+        )
         # shape (batch_size, sequence_length, num_head_tags)
-        head_tag_logits = self.tag_bilinear(selected_head_tag_representations,
-                                            child_tag_representation)
+        head_tag_logits = self.tag_bilinear(
+            selected_head_tag_representations, child_tag_representation
+        )
         return head_tag_logits
 
-    def _get_mask_for_eval(self,
-                           mask: torch.LongTensor,
-                           pos_tags: torch.LongTensor) -> torch.LongTensor:
+    def _get_mask_for_eval(
+        self, mask: torch.LongTensor, pos_tags: torch.LongTensor
+    ) -> torch.LongTensor:
         """
         Dependency evaluation excludes words are punctuation.
         Here, we create a new mask to exclude word indices which
@@ -513,5 +609,7 @@ class DependencyDecoder(Model):
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        return {f".run/deps/{metric_name}": metric
-                for metric_name, metric in self._attachment_scores.get_metric(reset).items()}
+        return {
+            f".run/deps/{metric_name}": metric
+            for metric_name, metric in self._attachment_scores.get_metric(reset).items()
+        }

@@ -2,33 +2,35 @@
 Decodes sequences of tags, e.g., POS tags, given a list of contextualized word embeddings
 """
 
-from typing import Optional, Any, Dict, List
-from overrides import overrides
+from typing import Any, Dict, List, Optional
 
 import numpy
 import torch
-from torch.nn.modules.linear import Linear
-from torch.nn.modules.adaptive import AdaptiveLogSoftmaxWithLoss
 import torch.nn.functional as F
-
 from allennlp.data import Vocabulary
-from allennlp.modules import TimeDistributed, Seq2SeqEncoder
 from allennlp.models.model import Model
+from allennlp.modules import Seq2SeqEncoder, TimeDistributed
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn.util import sequence_cross_entropy_with_logits
 from allennlp.training.metrics import CategoricalAccuracy
+from overrides import overrides
+from torch.nn.modules.adaptive import AdaptiveLogSoftmaxWithLoss
+from torch.nn.modules.linear import Linear
 
-from udify.dataset_readers.lemma_edit import apply_lemma_rule
+from ..dataset_readers.lemma_edit import apply_lemma_rule
 
 
-def sequence_cross_entropy(log_probs: torch.FloatTensor,
-                           targets: torch.LongTensor,
-                           weights: torch.FloatTensor,
-                           average: str = "batch",
-                           label_smoothing: float = None) -> torch.FloatTensor:
+def sequence_cross_entropy(
+    log_probs: torch.FloatTensor,
+    targets: torch.LongTensor,
+    weights: torch.FloatTensor,
+    average: str = "batch",
+    label_smoothing: float = None,
+) -> torch.FloatTensor:
     if average not in {None, "token", "batch"}:
-        raise ValueError("Got average f{average}, expected one of "
-                         "None, 'token', or 'batch'")
+        raise ValueError(
+            "Got average f{average}, expected one of " "None, 'token', or 'batch'"
+        )
     # shape : (batch * sequence_length, num_classes)
     log_probs_flat = log_probs.view(-1, log_probs.size(2))
     # shape : (batch * max_len, 1)
@@ -38,16 +40,22 @@ def sequence_cross_entropy(log_probs: torch.FloatTensor,
         num_classes = log_probs.size(-1)
         smoothing_value = label_smoothing / num_classes
         # Fill all the correct indices with 1 - smoothing value.
-        one_hot_targets = torch.zeros_like(log_probs_flat).scatter_(-1, targets_flat, 1.0 - label_smoothing)
+        one_hot_targets = torch.zeros_like(log_probs_flat).scatter_(
+            -1, targets_flat, 1.0 - label_smoothing
+        )
         smoothed_targets = one_hot_targets + smoothing_value
-        negative_log_likelihood_flat = - log_probs_flat * smoothed_targets
-        negative_log_likelihood_flat = negative_log_likelihood_flat.sum(-1, keepdim=True)
+        negative_log_likelihood_flat = -log_probs_flat * smoothed_targets
+        negative_log_likelihood_flat = negative_log_likelihood_flat.sum(
+            -1, keepdim=True
+        )
     else:
         # Contribution to the negative log likelihood only comes from the exact indices
         # of the targets, as the target distributions are one-hot. Here we use torch.gather
         # to extract the indices of the num_classes dimension which contribute to the loss.
         # shape : (batch * sequence_length, 1)
-        negative_log_likelihood_flat = - torch.gather(log_probs_flat, dim=1, index=targets_flat)
+        negative_log_likelihood_flat = -torch.gather(
+            log_probs_flat, dim=1, index=targets_flat
+        )
     # shape : (batch, sequence_length)
     negative_log_likelihood = negative_log_likelihood_flat.view(*targets.size())
     # shape : (batch, sequence_length)
@@ -55,14 +63,18 @@ def sequence_cross_entropy(log_probs: torch.FloatTensor,
 
     if average == "batch":
         # shape : (batch_size,)
-        per_batch_loss = negative_log_likelihood.sum(1) / (weights.sum(1).float() + 1e-13)
-        num_non_empty_sequences = ((weights.sum(1) > 0).float().sum() + 1e-13)
+        per_batch_loss = negative_log_likelihood.sum(1) / (
+            weights.sum(1).float() + 1e-13
+        )
+        num_non_empty_sequences = (weights.sum(1) > 0).float().sum() + 1e-13
         return per_batch_loss.sum() / num_non_empty_sequences
     elif average == "token":
         return negative_log_likelihood.sum() / (weights.sum().float() + 1e-13)
     else:
         # shape : (batch_size,)
-        per_batch_loss = negative_log_likelihood.sum(1) / (weights.sum(1).float() + 1e-13)
+        per_batch_loss = negative_log_likelihood.sum(1) / (
+            weights.sum(1).float() + 1e-13
+        )
         return per_batch_loss
 
 
@@ -71,16 +83,19 @@ class TagDecoder(Model):
     """
     A basic sequence tagger that decodes from inputs of word embeddings
     """
-    def __init__(self,
-                 vocab: Vocabulary,
-                 task: str,
-                 encoder: Seq2SeqEncoder,
-                 label_smoothing: float = 0.0,
-                 dropout: float = 0.0,
-                 adaptive: bool = False,
-                 features: List[str] = None,
-                 initializer: InitializerApplicator = InitializerApplicator(),
-                 regularizer: Optional[RegularizerApplicator] = None) -> None:
+
+    def __init__(
+        self,
+        vocab: Vocabulary,
+        task: str,
+        encoder: Seq2SeqEncoder,
+        label_smoothing: float = 0.0,
+        dropout: float = 0.0,
+        adaptive: bool = False,
+        features: List[str] = None,
+        initializer: InitializerApplicator = InitializerApplicator(),
+        regularizer: Optional[RegularizerApplicator] = None,
+    ) -> None:
         super(TagDecoder, self).__init__(vocab, regularizer)
 
         self.task = task
@@ -98,31 +113,39 @@ class TagDecoder(Model):
 
         if self.adaptive:
             # TODO
-            adaptive_cutoffs = [round(self.num_classes / 15), 3 * round(self.num_classes / 15)]
-            self.task_output = AdaptiveLogSoftmaxWithLoss(self.output_dim,
-                                                          self.num_classes,
-                                                          cutoffs=adaptive_cutoffs,
-                                                          div_value=4.0)
+            adaptive_cutoffs = [
+                round(self.num_classes / 15),
+                3 * round(self.num_classes / 15),
+            ]
+            self.task_output = AdaptiveLogSoftmaxWithLoss(
+                self.output_dim,
+                self.num_classes,
+                cutoffs=adaptive_cutoffs,
+                div_value=4.0,
+            )
         else:
-            self.task_output = TimeDistributed(Linear(self.output_dim, self.num_classes))
+            self.task_output = TimeDistributed(
+                Linear(self.output_dim, self.num_classes)
+            )
 
         self.feature_outputs = torch.nn.ModuleDict()
         self.features_metrics = {}
         for feature in self.features:
-            self.feature_outputs[feature] = TimeDistributed(Linear(self.output_dim,
-                                                                   vocab.get_vocab_size(feature)))
-            self.features_metrics[feature] = {
-                "acc": CategoricalAccuracy(),
-            }
+            self.feature_outputs[feature] = TimeDistributed(
+                Linear(self.output_dim, vocab.get_vocab_size(feature))
+            )
+            self.features_metrics[feature] = {"acc": CategoricalAccuracy()}
 
         initializer(self)
 
     @overrides
-    def forward(self,
-                encoded_text: torch.FloatTensor,
-                mask: torch.LongTensor,
-                gold_tags: Dict[str, torch.LongTensor],
-                metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
+    def forward(
+        self,
+        encoded_text: torch.FloatTensor,
+        mask: torch.LongTensor,
+        gold_tags: Dict[str, torch.LongTensor],
+        metadata: List[Dict[str, Any]] = None,
+    ) -> Dict[str, torch.Tensor]:
         hidden = encoded_text
         hidden = self.encoder(hidden, mask)
 
@@ -140,15 +163,19 @@ class TagDecoder(Model):
         logits = hidden
         reshaped_log_probs = logits.view(-1, logits.size(2))
 
-        class_probabilities = self.task_output.log_prob(reshaped_log_probs).view(output_dim)
+        class_probabilities = self.task_output.log_prob(reshaped_log_probs).view(
+            output_dim
+        )
 
         output_dict = {"logits": logits, "class_probabilities": class_probabilities}
 
         if gold_tags is not None:
-            output_dict["loss"] = sequence_cross_entropy(class_probabilities,
-                                                         gold_tags,
-                                                         mask,
-                                                         label_smoothing=self.label_smoothing)
+            output_dict["loss"] = sequence_cross_entropy(
+                class_probabilities,
+                gold_tags,
+                mask,
+                label_smoothing=self.label_smoothing,
+            )
             for metric in self.metrics.values():
                 metric(class_probabilities, gold_tags, mask.float())
 
@@ -162,10 +189,9 @@ class TagDecoder(Model):
         output_dict = {"logits": logits, "class_probabilities": class_probabilities}
 
         if gold_tags is not None:
-            output_dict["loss"] = sequence_cross_entropy_with_logits(logits,
-                                                                     gold_tags,
-                                                                     mask,
-                                                                     label_smoothing=self.label_smoothing)
+            output_dict["loss"] = sequence_cross_entropy_with_logits(
+                logits, gold_tags, mask, label_smoothing=self.label_smoothing
+            )
             for metric in self.metrics.values():
                 metric(logits, gold_tags, mask.float())
 
@@ -177,10 +203,9 @@ class TagDecoder(Model):
 
         for feature in self.features:
             logits = self.feature_outputs[feature](hidden)
-            loss = sequence_cross_entropy_with_logits(logits,
-                                                      gold_tags[feature],
-                                                      mask,
-                                                      label_smoothing=self.label_smoothing)
+            loss = sequence_cross_entropy_with_logits(
+                logits, gold_tags[feature], mask, label_smoothing=self.label_smoothing
+            )
             loss /= len(self.features)
             output_dict["loss"] += loss
 
@@ -191,25 +216,33 @@ class TagDecoder(Model):
     def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         all_words = output_dict["words"]
 
-        all_predictions = output_dict["class_probabilities"][self.task].cpu().data.numpy()
+        all_predictions = (
+            output_dict["class_probabilities"][self.task].cpu().data.numpy()
+        )
         if all_predictions.ndim == 3:
-            predictions_list = [all_predictions[i] for i in range(all_predictions.shape[0])]
+            predictions_list = [
+                all_predictions[i] for i in range(all_predictions.shape[0])
+            ]
         else:
             predictions_list = [all_predictions]
         all_tags = []
         for predictions, words in zip(predictions_list, all_words):
             argmax_indices = numpy.argmax(predictions, axis=-1)
-            tags = [self.vocab.get_token_from_index(x, namespace=self.task)
-                    for x in argmax_indices]
+            tags = [
+                self.vocab.get_token_from_index(x, namespace=self.task)
+                for x in argmax_indices
+            ]
 
             # TODO: specific task
             if self.task == "lemmas":
+
                 def decode_lemma(word, rule):
                     if rule == "_":
                         return "_"
                     if rule == "@@UNKNOWN@@":
                         return word
                     return apply_lemma_rule(word, rule)
+
                 tags = [decode_lemma(word, rule) for word, rule in zip(words, tags)]
 
             all_tags.append(tags)

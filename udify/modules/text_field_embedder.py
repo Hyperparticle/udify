@@ -2,19 +2,18 @@
 A modification to AllenNLP's TextFieldEmbedder
 """
 
-from typing import Dict, List, Optional
 import warnings
+from typing import Dict, List, Optional
 
 import torch
-from overrides import overrides
-from torch.nn.modules.linear import Linear
-
 from allennlp.common import Params
 from allennlp.common.checks import ConfigurationError
 from allennlp.data import Vocabulary
 from allennlp.modules.text_field_embedders import TextFieldEmbedder
 from allennlp.modules.time_distributed import TimeDistributed
 from allennlp.modules.token_embedders.token_embedder import TokenEmbedder
+from overrides import overrides
+from torch.nn.modules.linear import Linear
 
 
 @TextFieldEmbedder.register("udify_embedder")
@@ -28,19 +27,21 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
     basic_text_field_embedder.py
     """
 
-    def __init__(self,
-                 token_embedders: Dict[str, TokenEmbedder],
-                 output_dim: Optional[int] = None,
-                 sum_embeddings: List[str] = None,
-                 embedder_to_indexer_map: Dict[str, List[str]] = None,
-                 allow_unmatched_keys: bool = False,
-                 dropout: float = 0.0) -> None:
+    def __init__(
+        self,
+        token_embedders: Dict[str, TokenEmbedder],
+        output_dim: Optional[int] = None,
+        sum_embeddings: List[str] = None,
+        embedder_to_indexer_map: Dict[str, List[str]] = None,
+        allow_unmatched_keys: bool = False,
+        dropout: float = 0.0,
+    ) -> None:
         super(UdifyTextFieldEmbedder, self).__init__()
         self._output_dim = output_dim
         self._token_embedders = token_embedders
         self._embedder_to_indexer_map = embedder_to_indexer_map
         for key, embedder in token_embedders.items():
-            name = 'token_embedder_%s' % key
+            name = "token_embedder_%s" % key
             self.add_module(name, embedder)
         self._allow_unmatched_keys = allow_unmatched_keys
         self._dropout = torch.nn.Dropout(p=dropout) if dropout > 0 else lambda x: x
@@ -64,7 +65,9 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
     def get_output_dim(self) -> int:
         return self._output_dim
 
-    def forward(self, text_field_input: Dict[str, torch.Tensor], num_wrapping_dims: int = 0) -> torch.Tensor:
+    def forward(
+        self, text_field_input: Dict[str, torch.Tensor], num_wrapping_dims: int = 0
+    ) -> torch.Tensor:
         embedder_keys = self._token_embedders.keys()
         input_keys = text_field_input.keys()
 
@@ -72,35 +75,41 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
         if not self._allow_unmatched_keys:
             if embedder_keys < input_keys:
                 # token embedder keys are a strict subset of text field input keys.
-                message = (f"Your text field is generating more keys ({list(input_keys)}) "
-                           f"than you have token embedders ({list(embedder_keys)}. "
-                           f"If you are using a token embedder that requires multiple keys "
-                           f"(for example, the OpenAI Transformer embedder or the BERT embedder) "
-                           f"you need to add allow_unmatched_keys = True "
-                           f"(and likely an embedder_to_indexer_map) to your "
-                           f"BasicTextFieldEmbedder configuration. "
-                           f"Otherwise, you should check that there is a 1:1 embedding "
-                           f"between your token indexers and token embedders.")
+                message = (
+                    f"Your text field is generating more keys ({list(input_keys)}) "
+                    f"than you have token embedders ({list(embedder_keys)}. "
+                    f"If you are using a token embedder that requires multiple keys "
+                    f"(for example, the OpenAI Transformer embedder or the BERT embedder) "
+                    f"you need to add allow_unmatched_keys = True "
+                    f"(and likely an embedder_to_indexer_map) to your "
+                    f"BasicTextFieldEmbedder configuration. "
+                    f"Otherwise, you should check that there is a 1:1 embedding "
+                    f"between your token indexers and token embedders."
+                )
                 raise ConfigurationError(message)
 
             elif self._token_embedders.keys() != text_field_input.keys():
                 # some other mismatch
-                message = "Mismatched token keys: %s and %s" % (str(self._token_embedders.keys()),
-                                                                str(text_field_input.keys()))
+                message = "Mismatched token keys: %s and %s" % (
+                    str(self._token_embedders.keys()),
+                    str(text_field_input.keys()),
+                )
                 raise ConfigurationError(message)
 
         def embed(key):
             # If we pre-specified a mapping explictly, use that.
             if self._embedder_to_indexer_map is not None:
-                tensors = [text_field_input[indexer_key] for
-                           indexer_key in self._embedder_to_indexer_map[key]]
+                tensors = [
+                    text_field_input[indexer_key]
+                    for indexer_key in self._embedder_to_indexer_map[key]
+                ]
             else:
                 # otherwise, we assume the mapping between indexers and embedders
                 # is bijective and just use the key directly.
                 tensors = [text_field_input[key]]
             # Note: need to use getattr here so that the pytorch voodoo
             # with submodules works with multiple GPUs.
-            embedder = getattr(self, 'token_embedder_{}'.format(key))
+            embedder = getattr(self, "token_embedder_{}".format(key))
             for _ in range(num_wrapping_dims):
                 embedder = TimeDistributed(embedder)
             token_vectors = embedder(*tensors)
@@ -126,13 +135,17 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
         combined_embeddings = self._dropout(torch.cat(embedded_representations, dim=-1))
 
         if self._projection_layer is not None:
-            combined_embeddings = self._dropout(self._projection_layer(combined_embeddings))
+            combined_embeddings = self._dropout(
+                self._projection_layer(combined_embeddings)
+            )
 
         return combined_embeddings
 
     # This is some unusual logic, it needs a custom from_params.
     @classmethod
-    def from_params(cls, vocab: Vocabulary, params: Params) -> 'UdifyTextFieldEmbedder':  # type: ignore
+    def from_params(
+        cls, vocab: Vocabulary, params: Params
+    ) -> "UdifyTextFieldEmbedder":  # type: ignore
         # pylint: disable=arguments-differ,bad-super-call
 
         # The original `from_params` for this class was designed in a way that didn't agree
@@ -149,7 +162,7 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
             embedder_to_indexer_map = embedder_to_indexer_map.as_dict(quiet=True)
         allow_unmatched_keys = params.pop_bool("allow_unmatched_keys", False)
 
-        token_embedder_params = params.pop('token_embedders', None)
+        token_embedder_params = params.pop("token_embedders", None)
 
         dropout = params.pop_float("dropout", 0.0)
 
@@ -165,15 +178,28 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
 
         else:
             # Warn that the original behavior is deprecated
-            warnings.warn(DeprecationWarning("the token embedders for BasicTextFieldEmbedder should now "
-                                             "be specified as a dict under the 'token_embedders' key, "
-                                             "not as top-level key-value pairs"))
+            warnings.warn(
+                DeprecationWarning(
+                    "the token embedders for BasicTextFieldEmbedder should now "
+                    "be specified as a dict under the 'token_embedders' key, "
+                    "not as top-level key-value pairs"
+                )
+            )
 
             token_embedders = {}
             keys = list(params.keys())
             for key in keys:
                 embedder_params = params.pop(key)
-                token_embedders[key] = TokenEmbedder.from_params(vocab=vocab, params=embedder_params)
+                token_embedders[key] = TokenEmbedder.from_params(
+                    vocab=vocab, params=embedder_params
+                )
 
         params.assert_empty(cls.__name__)
-        return cls(token_embedders, output_dim, sum_embeddings, embedder_to_indexer_map, allow_unmatched_keys, dropout)
+        return cls(
+            token_embedders,
+            output_dim,
+            sum_embeddings,
+            embedder_to_indexer_map,
+            allow_unmatched_keys,
+            dropout,
+        )

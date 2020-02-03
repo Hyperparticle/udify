@@ -10,18 +10,27 @@ def min_edit_script(source, target, allow_copy=False):
     """
     Finds the minimum edit script to transform the source to the target
     """
-    a = [[(len(source) + len(target) + 1, None)] * (len(target) + 1) for _ in range(len(source) + 1)]
+    a = [
+        [(len(source) + len(target) + 1, None)] * (len(target) + 1)
+        for _ in range(len(source) + 1)
+    ]
     for i in range(0, len(source) + 1):
         for j in range(0, len(target) + 1):
             if i == 0 and j == 0:
                 a[i][j] = (0, "")
             else:
-                if allow_copy and i and j and source[i - 1] == target[j - 1] and a[i-1][j-1][0] < a[i][j][0]:
-                    a[i][j] = (a[i-1][j-1][0], a[i-1][j-1][1] + "→")
-                if i and a[i-1][j][0] < a[i][j][0]:
-                    a[i][j] = (a[i-1][j][0] + 1, a[i-1][j][1] + "-")
-                if j and a[i][j-1][0] < a[i][j][0]:
-                    a[i][j] = (a[i][j-1][0] + 1, a[i][j-1][1] + "+" + target[j - 1])
+                if (
+                    allow_copy
+                    and i
+                    and j
+                    and source[i - 1] == target[j - 1]
+                    and a[i - 1][j - 1][0] < a[i][j][0]
+                ):
+                    a[i][j] = (a[i - 1][j - 1][0], a[i - 1][j - 1][1] + "→")
+                if i and a[i - 1][j][0] < a[i][j][0]:
+                    a[i][j] = (a[i - 1][j][0] + 1, a[i - 1][j][1] + "-")
+                if j and a[i][j - 1][0] < a[i][j][0]:
+                    a[i][j] = (a[i][j - 1][0] + 1, a[i][j - 1][1] + "+" + target[j - 1])
     return a[-1][-1][1]
 
 
@@ -36,7 +45,11 @@ def gen_lemma_rule(form, lemma, allow_copy=False):
     for i, c in enumerate(lemma):
         case = "↑" if c.lower() != c else "↓"
         if case != previous_case:
-            lemma_casing += "{}{}{}".format("¦" if lemma_casing else "", case, i if i <= len(lemma) // 2 else i - len(lemma))
+            lemma_casing += "{}{}{}".format(
+                "¦" if lemma_casing else "",
+                case,
+                i if i <= len(lemma) // 2 else i - len(lemma),
+            )
         previous_case = case
     lemma = lemma.lower()
 
@@ -44,7 +57,12 @@ def gen_lemma_rule(form, lemma, allow_copy=False):
     for l in range(len(lemma)):
         for f in range(len(form)):
             cpl = 0
-            while f + cpl < len(form) and l + cpl < len(lemma) and form[f + cpl] == lemma[l + cpl]: cpl += 1
+            while (
+                f + cpl < len(form)
+                and l + cpl < len(lemma)
+                and form[f + cpl] == lemma[l + cpl]
+            ):
+                cpl += 1
             if cpl > best:
                 best = cpl
                 best_form = f
@@ -56,7 +74,9 @@ def gen_lemma_rule(form, lemma, allow_copy=False):
     else:
         rule += "d{}¦{}".format(
             min_edit_script(form[:best_form], lemma[:best_lemma], allow_copy),
-            min_edit_script(form[best_form + best:], lemma[best_lemma + best:], allow_copy),
+            min_edit_script(
+                form[best_form + best :], lemma[best_lemma + best :], allow_copy
+            ),
         )
     return rule
 
@@ -84,7 +104,7 @@ def apply_lemma_rule(form, lemma_rule):
             rule_sources.append(source)
 
         try:
-            lemma, form_offset = "", 0
+            lemma = ""
             for i in range(2):
                 j, offset = 0, (0 if i == 0 else len(form) - rule_sources[1])
                 while j < len(rules[i]):
@@ -94,18 +114,21 @@ def apply_lemma_rule(form, lemma_rule):
                     elif rules[i][j] == "-":
                         offset += 1
                     else:
-                        assert(rules[i][j] == "+")
+                        assert rules[i][j] == "+"
                         lemma += rules[i][j + 1]
                         j += 1
                     j += 1
                 if i == 0:
-                    lemma += form[rule_sources[0]: len(form) - rule_sources[1]]
-        except:
+                    lemma += form[rule_sources[0] : len(form) - rule_sources[1]]
+        except:  # noqa: E722
             lemma = form
 
     for rule in casing.split("¦"):
-        if rule == "↓0": continue  # The lemma is lowercased initially
+        if rule == "↓0":
+            continue  # The lemma is lowercased initially
         case, offset = rule[0], int(rule[1:])
-        lemma = lemma[:offset] + (lemma[offset:].upper() if case == "↑" else lemma[offset:].lower())
+        lemma = lemma[:offset] + (
+            lemma[offset:].upper() if case == "↑" else lemma[offset:].lower()
+        )
 
     return lemma
