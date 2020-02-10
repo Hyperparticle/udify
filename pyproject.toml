@@ -1,12 +1,15 @@
 [tool.poetry]
-name = "udify"
-version = "0.1.0"
+name = "unofficial-udify"
+packages = [
+    { include = "udify" },
+]
+version = "0.1.2"
 description = ""
 authors = ["Dan Kondratyuk"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-allennlp = "*"
+python = ">=3.6.1"
+unofficial-allennlp-nightly = "0.9.2"
 transformers = "^2.3.0"
 
 [tool.poetry.dev-dependencies]
