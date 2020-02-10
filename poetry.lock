@@ -689,7 +689,7 @@ description = "An open-source NLP research library, built on PyTorch."
 name = "unofficial-allennlp-nightly"
 optional = false
 python-versions = ">=3.6.1"
-version = "0.9.1"
+version = "0.9.2"
 
 [package.dependencies]
 boto3 = "*"
@@ -754,7 +754,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools"]
 
 [metadata]
-content-hash = "faa6bfe1ec28c263284a61eb6684c08c0d6eac179bb59610d6addb32dde45ce3"
+content-hash = "f91d4b07b51665f5f1c453939798e087d047ac365e4d323a7480f4b0ef07f7b3"
 python-versions = ">=3.6.1"
 
 [metadata.files]
@@ -1254,8 +1254,8 @@ typed-ast = [
     {file = "typed_ast-1.4.1.tar.gz", hash = "sha256:8c8aaad94455178e3187ab22c8b01a3837f8ee50e09cf31f1ba129eb293ec30b"},
 ]
 unofficial-allennlp-nightly = [
-    {file = "unofficial-allennlp-nightly-0.9.1.tar.gz", hash = "sha256:2d9045f4f5f58da54f51f6bac7e09baa7de0e413e87f95265587b552bdcb1a7a"},
-    {file = "unofficial_allennlp_nightly-0.9.1-py3-none-any.whl", hash = "sha256:7e0d2aa6b2e3b57aa4d628b2581568367cea6d33818c5e0f71c8de29a6f6387d"},
+    {file = "unofficial-allennlp-nightly-0.9.2.tar.gz", hash = "sha256:e8a9bacb5757b0ad97314b8d2499f2eafcf77918242e3a68a0da6628a1929279"},
+    {file = "unofficial_allennlp_nightly-0.9.2-py3-none-any.whl", hash = "sha256:33658a4a6fffa550586d5d9d2373f344a5acf8e3b7dd2b8f25d5d0d21cce715e"},
 ]
 urllib3 = [
     {file = "urllib3-1.22-py2.py3-none-any.whl", hash = "sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b"},
