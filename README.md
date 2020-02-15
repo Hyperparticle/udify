@@ -10,6 +10,8 @@ accuracy. This project also supports training and evaluating for the
 [SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/), which achieved 1st place in 
  morphology tagging (paper can be found [here](https://www.aclweb.org/anthology/W19-4203)).
 
+Integration with SpaCy is supported by [Camphr](https://github.com/PKSHATechnology-Research/camphr).
+
 [![UDify Model Architecture](docs/udify-architecture.png)](https://arxiv.org/pdf/1904.02099.pdf)
 
 The project is built using [AllenNLP](https://allennlp.org/) and [PyTorch](https://pytorch.org/).
