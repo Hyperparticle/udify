@@ -17,6 +17,23 @@ class ParseException(Exception):
     pass
 
 
+def process_MWTs(annotation):
+    """Processes the CoNLLU annotations for multi-word tokens"""
+    
+    for i in range(len(annotation)):
+        conllu_id = annotation[i]["id"]
+        # conllu library returns a tuple object for MWTs and elided tokens
+        if type(conllu_id) == tuple:
+            if "-" in conllu_id:
+                conllu_id = list(conllu_id)
+                conllu_id = str(conllu_id[0]) + '-' + str(conllu_id[-1])
+                annotation[i]["multi_id"] = conllu_id
+                annotation[i]["id"] = None
+        else:
+            annotation[i]["multi_id"] = None
+    
+    return annotation
+
 def parse_token_and_metadata(data, fields=None):
     if not data:
         raise ParseException("Can't create TokenList, no data sent to constructor.")

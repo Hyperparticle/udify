@@ -5,7 +5,8 @@ A Dataset Reader for Universal Dependencies, with support for multiword tokens a
 from typing import Dict, Tuple, List, Any, Callable
 
 from overrides import overrides
-from udify.dataset_readers.parser import parse_line, DEFAULT_FIELDS
+from udify.dataset_readers.parser import parse_line, DEFAULT_FIELDS, process_MWTs
+from conllu import parse_incr
 
 from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
@@ -20,15 +21,6 @@ from udify.dataset_readers.lemma_edit import gen_lemma_rule
 import logging
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
-
-def lazy_parse(text: str, fields: Tuple[str, ...]=DEFAULT_FIELDS):
-    for sentence in text.split("\n\n"):
-        if sentence:
-            # TODO: upgrade conllu library
-            yield [parse_line(line, fields)
-                   for line in sentence.split("\n")
-                   if line and not line.strip().startswith("#")]
 
 
 @DatasetReader.register("udify_universal_dependencies")
@@ -47,13 +39,16 @@ class UniversalDependenciesDatasetReader(DatasetReader):
         with open(file_path, 'r') as conllu_file:
             logger.info("Reading UD instances from conllu dataset at: %s", file_path)
 
-            for annotation in lazy_parse(conllu_file.read()):
+            for annotation in parse_incr(conllu_file):
                 # CoNLLU annotations sometimes add back in words that have been elided
                 # in the original sentence; we remove these, as we're just predicting
                 # dependencies for the original sentence.
                 # We filter by None here as elided words have a non-integer word id,
                 # and are replaced with None by the conllu python library.
-                multiword_tokens = [x for x in annotation if x["multi_id"] is not None]
+                
+                annotation = process_MWTs(annotation)
+                
+                multiword_tokens = [x for x in annotation if x["multi_id"] is not None]         
                 annotation = [x for x in annotation if x["id"] is not None]
 
                 if len(annotation) == 0:
@@ -66,7 +61,9 @@ class UniversalDependenciesDatasetReader(DatasetReader):
                 # Extract multiword token rows (not used for prediction, purely for evaluation)
                 ids = [x["id"] for x in annotation]
                 multiword_ids = [x["multi_id"] for x in multiword_tokens]
+                print("multiword_ids", multiword_ids)
                 multiword_forms = [x["form"] for x in multiword_tokens]
+                print("multiword_forms", multiword_forms)
 
                 words = get_field("form")
                 lemmas = get_field("lemma")
