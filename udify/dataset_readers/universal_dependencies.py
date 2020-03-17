@@ -122,7 +122,6 @@ class UniversalDependenciesDatasetReader(DatasetReader):
             "multiword_forms": multiword_forms
         })
 
-        print(fields)
         return Instance(fields)
 
 
