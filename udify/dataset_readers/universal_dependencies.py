@@ -5,7 +5,7 @@ A Dataset Reader for Universal Dependencies, with support for multiword tokens a
 from typing import Dict, Tuple, List, Any, Callable
 
 from overrides import overrides
-from udify.dataset_readers.parser import parse_line, DEFAULT_FIELDS, process_MWTs
+from udify.dataset_readers.parser import parse_line, DEFAULT_FIELDS, process_multiword_tokens
 from conllu import parse_incr
 
 from allennlp.common.file_utils import cached_path
@@ -44,11 +44,9 @@ class UniversalDependenciesDatasetReader(DatasetReader):
                 # in the original sentence; we remove these, as we're just predicting
                 # dependencies for the original sentence.
                 # We filter by None here as elided words have a non-integer word id,
-                # and are replaced with None by the conllu python library.
-                
-                annotation = process_MWTs(annotation)
-                
-                multiword_tokens = [x for x in annotation if x["multi_id"] is not None]         
+                # and we replace these word ids with None in process_multiword_tokens.
+                annotation = process_multiword_tokens(annotation)               
+                multiword_tokens = [x for x in annotation if x["multi_id"] is not None]     
                 annotation = [x for x in annotation if x["id"] is not None]
 
                 if len(annotation) == 0:
@@ -61,9 +59,7 @@ class UniversalDependenciesDatasetReader(DatasetReader):
                 # Extract multiword token rows (not used for prediction, purely for evaluation)
                 ids = [x["id"] for x in annotation]
                 multiword_ids = [x["multi_id"] for x in multiword_tokens]
-                print("multiword_ids", multiword_ids)
                 multiword_forms = [x["form"] for x in multiword_tokens]
-                print("multiword_forms", multiword_forms)
 
                 words = get_field("form")
                 lemmas = get_field("lemma")
@@ -126,6 +122,7 @@ class UniversalDependenciesDatasetReader(DatasetReader):
             "multiword_forms": multiword_forms
         })
 
+        print(fields)
         return Instance(fields)
 
 
