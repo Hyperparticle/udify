@@ -86,6 +86,9 @@ if not args.name == "multilingual":
         if param == "test_data_path":
             train_params["test_data_path"] = os.path.join(treebank_path, f"{args.name}-ud-test.conllu")
         
+        if param == "vocabulary":
+            train_params["vocabulary"]["directory_path"] = f"data/vocab/{args.name}/vocabulary"
+        
         if param == "trainer":
             for sub_param in train_params["trainer"]:
                 if sub_param == "learning_rate_scheduler":
