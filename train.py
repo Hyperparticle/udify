@@ -54,7 +54,7 @@ if not args.name == "multilingual":
         for line in f.readlines():
             if line.isspace():
                 sentence_count += 1
-                num_warmup_steps = round(sentence_count / args.batch_size)
+        num_warmup_steps = round(sentence_count / args.batch_size)
 
 configs = []
 
