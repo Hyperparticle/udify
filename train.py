@@ -7,6 +7,7 @@ import copy
 import datetime
 import logging
 import argparse
+import glob
 
 from allennlp.common import Params
 from allennlp.common.util import import_submodules
@@ -22,6 +23,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--name", default="", type=str, help="Log dir name")
 parser.add_argument("--base_config", default="config/udify_base.json", type=str, help="Base configuration file")
 parser.add_argument("--config", default=[], type=str, nargs="+", help="Overriding configuration files")
+parser.add_argument("--dataset_dir", default="data/ud-treebanks-v2.5", type=str, help="The path containing all UD treebanks")
+parser.add_argument("--batch_size", default=32, type=int, help="The batch size used by the model; the number of training sentences is divided by this number.")
 parser.add_argument("--device", default=None, type=int, help="CUDA device; set to -1 for CPU")
 parser.add_argument("--resume", type=str, help="Resume training with the given model")
 parser.add_argument("--lazy", default=None, action="store_true", help="Lazy load the dataset")
@@ -36,6 +39,22 @@ log_dir_name = args.name
 if not log_dir_name:
     file_name = args.config[0] if args.config else args.base_config
     log_dir_name = os.path.basename(file_name).split(".")[0]
+
+if not args.name == "multilingual":
+    train_file = args.name + "-ud-train.conllu"
+    pathname = os.path.join(args.dataset_dir, "*", train_file)
+    train_path = glob.glob(pathname).pop()
+    treebank_path = os.path.dirname(train_path)
+
+    if train_path:
+        logger.info(f"found training file: {train_path}, calculating the warmup and start steps")
+    
+        f = open(train_path, 'r', encoding="utf-8")
+        sentence_count = 0
+        for line in f.readlines():
+            if line.isspace():
+                sentence_count += 1
+        num_warmup_steps = round(sentence_count / args.batch_size)
 
 configs = []
 
@@ -56,6 +75,28 @@ else:
     configs.append(Params.from_file(os.path.join(serialization_dir, "config.json")))
 
 train_params = util.merge_configs(configs)
+
+if not args.name == "multilingual":
+    # overwrite the default params with the language-specific ones
+    for param in train_params:
+        if param == "train_data_path":
+            train_params["train_data_path"] = os.path.join(treebank_path, f"{args.name}-ud-train.conllu")
+        if param == "validation_data_path":
+            train_params["validation_data_path"] = os.path.join(treebank_path, f"{args.name}-ud-dev.conllu")
+        if param == "test_data_path":
+            train_params["test_data_path"] = os.path.join(treebank_path, f"{args.name}-ud-test.conllu")
+        
+        if param == "vocabulary":
+            train_params["vocabulary"]["directory_path"] = f"data/vocab/{args.name}/vocabulary"
+        
+        if param == "trainer":
+            for sub_param in train_params["trainer"]:
+                if sub_param == "learning_rate_scheduler":
+                    train_params["trainer"]["learning_rate_scheduler"]["warmup_steps"] = num_warmup_steps
+                    train_params["trainer"]["learning_rate_scheduler"]["start_step"] = num_warmup_steps
+                    
+                    logger.info(f"changing warmup and start steps for {train_path} to {num_warmup_steps}")
+                
 if "vocabulary" in train_params:
     # Remove this key to make AllenNLP happy
     train_params["vocabulary"].pop("non_padded_namespaces", None)
