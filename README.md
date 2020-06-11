@@ -55,7 +55,7 @@ The training may take 20 or more days to complete all 80 epochs depending on the
 An example config is given for fine-tuning on just English EWT. Just run:
 
 ```bash
-python train.py --config config/ud/en/udify_bert_finetune_en_ewt.json --name en_ewt
+python train.py --config config/ud/en/udify_bert_finetune_en_ewt.json --name en_ewt --dataset_dir data/ud-treebanks-v2.3/
 ```
 
 To run your own dataset, copy `config/ud/multilingual/udify_bert_finetune_multilingual.json` and modify the following
