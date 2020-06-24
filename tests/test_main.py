@@ -1,5 +1,5 @@
 from typing import Dict, List
-from allennlp.common.util import import_submodules
+from allennlp.common.util import import_module_and_submodules
 import torch
 import pytest
 from allennlp.data import DatasetReader
@@ -9,7 +9,7 @@ from udify.models.udify_model import OUTPUTS as UdifyOUTPUTS  # type: ignore
 
 
 def test_import():
-    import_submodules("udify")
+    import_module_and_submodules("udify")
 
 
 @pytest.fixture(scope="session")
@@ -34,4 +34,4 @@ def model():
 
 
 def test_call(model):
-    outputs = model([["Who", "are", "you", "?"]])
+    model([["Who", "are", "you", "?"]])

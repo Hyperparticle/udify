@@ -243,7 +243,6 @@ class DependencyDecoder(Model):
 
         return output_dict
 
-    @overrides
     def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
 
         head_tags = output_dict.pop("head_tags").cpu().detach().numpy()

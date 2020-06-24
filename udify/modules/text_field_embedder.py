@@ -144,7 +144,7 @@ class UdifyTextFieldEmbedder(TextFieldEmbedder):
     # This is some unusual logic, it needs a custom from_params.
     @classmethod
     def from_params(
-        cls, vocab: Vocabulary, params: Params
+        cls, vocab: Vocabulary, params: Params, **kwargs
     ) -> "UdifyTextFieldEmbedder":  # type: ignore
         # pylint: disable=arguments-differ,bad-super-call
 

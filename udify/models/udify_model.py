@@ -54,7 +54,7 @@ class UdifyModel(Model):
         dropout: float = 0.0,
         word_dropout: float = 0.0,
         mix_embedding: int = None,
-        layer_dropout: int = 0.0,
+        layer_dropout: float = 0.0,
         initializer: InitializerApplicator = InitializerApplicator(),
         regularizer: Optional[RegularizerApplicator] = None,
     ) -> None:
@@ -257,7 +257,6 @@ class UdifyModel(Model):
         else:
             return tokens
 
-    @overrides
     def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         for task in self.tasks:
             self.decoders[task].decode(output_dict)

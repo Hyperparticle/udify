@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 _NEVER_LOWERCASE = ["[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"]
 
 
-class WordpieceIndexer(TokenIndexer[int]):
+class WordpieceIndexer(TokenIndexer):
     """
     A token indexer that does the wordpiece-tokenization (e.g. for BERT embeddings).
     If you are using one of the pretrained BERT models, you'll want to use the ``PretrainedBertIndexer``
@@ -271,7 +271,6 @@ class WordpieceIndexer(TokenIndexer[int]):
             "mask": mask,
         }
 
-    @overrides
     def get_padding_token(self) -> int:
         return 0
 
@@ -281,7 +280,6 @@ class WordpieceIndexer(TokenIndexer[int]):
     ) -> Dict[str, int]:  # pylint: disable=unused-argument
         return {}
 
-    @overrides
     def pad_token_sequence(
         self,
         tokens: Dict[str, List[int]],
@@ -293,7 +291,6 @@ class WordpieceIndexer(TokenIndexer[int]):
             for key, val in tokens.items()
         }
 
-    @overrides
     def get_keys(self, index_name: str) -> List[str]:
         """
         We need to override this because the indexer generates multiple keys.

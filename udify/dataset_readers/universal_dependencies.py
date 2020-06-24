@@ -10,7 +10,8 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import Field, MetadataField, SequenceLabelField, TextField
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
-from allennlp.data.tokenizers import Token
+from allennlp.data.tokenizers.spacy_tokenizer import SpacyTokenizer
+from allennlp.data.tokenizers import Token, Tokenizer
 from conllu import parse_incr
 from overrides import overrides
 from overrides import overrides
@@ -59,8 +60,8 @@ class UniversalDependenciesDatasetReader(DatasetReader):
                 # dependencies for the original sentence.
                 # We filter by None here as elided words have a non-integer word id,
                 # and we replace these word ids with None in process_multiword_tokens.
-                annotation = process_multiword_tokens(annotation)               
-                multiword_tokens = [x for x in annotation if x["multi_id"] is not None]     
+                annotation = process_multiword_tokens(annotation)
+                multiword_tokens = [x for x in annotation if x["multi_id"] is not None]
                 annotation = [x for x in annotation if x["id"] is not None]
 
                 if len(annotation) == 0:
@@ -170,27 +171,27 @@ class UniversalDependenciesDatasetReader(DatasetReader):
 class UniversalDependenciesRawDatasetReader(DatasetReader):
     """Like UniversalDependenciesDatasetReader, but reads raw sentences and tokenizes them first."""
 
-    def __init__(self,
-                 dataset_reader: DatasetReader,
-                 tokenizer: WordSplitter = None) -> None:
+    def __init__(
+        self, dataset_reader: DatasetReader, tokenizer: Tokenizer = None
+    ) -> None:
         super().__init__(lazy=dataset_reader.lazy)
         self.dataset_reader = dataset_reader
         if tokenizer:
             self.tokenizer = tokenizer
         else:
-            self.tokenizer = SpacyWordSplitter(language="xx_ent_wiki_sm")
+            self.tokenizer = SpacyTokenizer(language="xx_ent_wiki_sm")
 
     @overrides
     def _read(self, file_path: str):
         # if `file_path` is a URL, redirect to the cache
         file_path = cached_path(file_path)
 
-        with open(file_path, 'r') as conllu_file:
+        with open(file_path, "r") as conllu_file:
             for sentence in conllu_file:
                 if sentence:
                     words = [word.text for word in self.tokenizer.split_words(sentence)]
                     yield self.text_to_instance(words)
 
     @overrides
-    def text_to_instance(self,  words: List[str]) -> Instance:
+    def text_to_instance(self, words: List[str]) -> Instance:
         return self.dataset_reader.text_to_instance(words)

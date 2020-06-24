@@ -169,6 +169,14 @@ version = "0.4.3"
 
 [[package]]
 category = "main"
+description = "CoNLL-U Parser parses a CoNLL-U formatted string into a nested python dictionary"
+name = "conllu"
+optional = false
+python-versions = "*"
+version = "3.0"
+
+[[package]]
+category = "main"
 description = "Manage calls to calloc/free through Cython"
 name = "cymem"
 optional = false
@@ -774,7 +782,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "689dcf82cc6554ac60a62bd8d8bb400f6c62a178c5de7dc1b3e2f1c336d1ca32"
+content-hash = "3b1ac0be907659f5ace39b53e1374cb531d7882a72721293fdbc8802a149421a"
 python-versions = ">=3.6.1"
 
 [metadata.files]
@@ -843,6 +851,10 @@ click = [
 colorama = [
     {file = "colorama-0.4.3-py2.py3-none-any.whl", hash = "sha256:7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"},
     {file = "colorama-0.4.3.tar.gz", hash = "sha256:e96da0d330793e2cb9485e9ddfd918d456036c7149416295932478192f4436a1"},
+]
+conllu = [
+    {file = "conllu-3.0-py2.py3-none-any.whl", hash = "sha256:f18113bbc7dc24fa04e7f1f8a4836b36dbd0325d1fb85a4228d507f44daeb71f"},
+    {file = "conllu-3.0.tar.gz", hash = "sha256:910f1aadc2c33bba643dcac162ba8ec8eb98578f244b138b96947092f3247d1f"},
 ]
 cymem = [
     {file = "cymem-2.0.3-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:f4f19af4bca81f11922508a9dcf30ce1d2aee4972af9f81ce8e5331a6f46f5e1"},

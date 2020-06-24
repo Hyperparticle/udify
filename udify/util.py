@@ -11,7 +11,7 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 import torch
-from allennlp.commands.dry_run import dry_run_from_params
+from allennlp.training.util import make_vocab_from_params
 from allennlp.commands.predict import _PredictManager
 from allennlp.common import Params
 from allennlp.common.checks import ConfigurationError, check_for_gpu
@@ -87,7 +87,7 @@ def cache_vocab(params: Params, vocab_config_path: str = None):
 
     params = merge_configs([params, Params.from_file(vocab_config_path)])
     params["vocabulary"].pop("directory_path", None)
-    dry_run_from_params(params, os.path.split(vocab_path)[0])
+    make_vocab_from_params(params, os.path.split(vocab_path)[0])
 
 
 def get_ud_treebank_files(
