@@ -10,6 +10,8 @@ accuracy. This project also supports training and evaluating for the
 [SIGMORPHON 2019 Shared Task #2](https://sigmorphon.github.io/sharedtasks/2019/task2/), which achieved 1st place in 
  morphology tagging (paper can be found [here](https://www.aclweb.org/anthology/W19-4203)).
 
+Integration with SpaCy is supported by [Camphr](https://github.com/PKSHATechnology-Research/camphr).
+
 [![UDify Model Architecture](docs/udify-architecture.png)](https://arxiv.org/pdf/1904.02099.pdf)
 
 The project is built using [AllenNLP](https://allennlp.org/) and [PyTorch](https://pytorch.org/).
@@ -53,7 +55,7 @@ The training may take 20 or more days to complete all 80 epochs depending on the
 An example config is given for fine-tuning on just English EWT. Just run:
 
 ```bash
-python train.py --config config/ud/en/udify_bert_finetune_en_ewt.json --name en_ewt
+python train.py --config config/ud/en/udify_bert_finetune_en_ewt.json --name en_ewt --dataset_dir data/ud-treebanks-v2.3/
 ```
 
 To run your own dataset, copy `config/ud/multilingual/udify_bert_finetune_multilingual.json` and modify the following

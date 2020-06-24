@@ -9,7 +9,7 @@ authors = ["Dan Kondratyuk"]
 
 [tool.poetry.dependencies]
 python = ">=3.6.1"
-unofficial-allennlp-nightly = {version = "0.9.1.dev0", allow-prereleases = true}
+allennlp = "^1.0.0"
 transformers = "^2.3.0"
 
 [tool.poetry.dev-dependencies]

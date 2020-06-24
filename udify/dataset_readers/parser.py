@@ -28,6 +28,29 @@ class ParseException(Exception):
     pass
 
 
+def process_multiword_tokens(annotation):
+    """
+    Processes CoNLLU annotations for multi-word tokens.
+    If the token id returned by the conllu library is a tuple object (either a multi-word token or an elided token),
+    then the token id is set to None so that the token won't be used later on by the model.
+    """
+    
+    for i in range(len(annotation)):
+        conllu_id = annotation[i]["id"]
+        if type(conllu_id) == tuple:
+            if "-" in conllu_id:
+                conllu_id = str(conllu_id[0]) + "-" + str(conllu_id[2])
+                annotation[i]["multi_id"] = conllu_id
+                annotation[i]["id"] = None
+            elif "." in conllu_id:
+                annotation[i]["id"] = None
+                annotation[i]["multi_id"] = None
+        else:
+            annotation[i]["multi_id"] = None
+    
+    return annotation
+
+
 def parse_token_and_metadata(data, fields=None):
     if not data:
         raise ParseException("Can't create TokenList, no data sent to constructor.")
