@@ -149,7 +149,7 @@ If you use UDify for your research, please cite this work as:
 
 ```latex
 @inproceedings{kondratyuk-straka-2019-75,
-    title = {75 Languages, 1 Model: Parsing Universal Dependencies Universally}
+    title = {75 Languages, 1 Model: Parsing Universal Dependencies Universally},
     author = {Kondratyuk, Dan and Straka, Milan},
     booktitle = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)},
     year = {2019},
